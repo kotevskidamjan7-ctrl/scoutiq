@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     database_url: str
     api_football_key: str | None = None  # only the importer needs it
     tm_duckdb_path: str = "/data/transfermarkt-datasets.duckdb"  # mounted read-only in Docker
+    raw_dir: str = "/raw"  # cached API responses (mounted from ./raw)
 
 
 @lru_cache

@@ -1,0 +1,1696 @@
+{
+ "get": "players",
+ "parameters": {
+  "team": "33",
+  "season": "2024",
+  "page": 1
+ },
+ "errors": [],
+ "results": 6,
+ "paging": {
+  "current": 1,
+  "total": 4
+ },
+ "response": [
+  {
+   "player": {
+    "id": 18,
+    "name": "J. Sancho",
+    "firstname": "Jadon Malik",
+    "lastname": "Sancho",
+    "age": 25,
+    "birth": {
+     "date": "2000-03-25",
+     "place": "London",
+     "country": "England"
+    },
+    "nationality": "England",
+    "height": "180",
+    "weight": "76",
+    "injured": false,
+    "photo": "https://media.api-sports.io/football/players/18.png"
+   },
+   "statistics": [
+    {
+     "team": {
+      "id": 33,
+      "name": "Manchester United",
+      "logo": "https://media.api-sports.io/football/teams/33.png"
+     },
+     "league": {
+      "id": 39,
+      "name": "Premier League",
+      "country": "England",
+      "logo": "https://media.api-sports.io/football/leagues/39.png",
+      "flag": "https://media.api-sports.io/flags/gb-eng.svg",
+      "season": 2024
+     },
+     "games": {
+      "appearences": 0,
+      "lineups": 0,
+      "minutes": 0,
+      "number": null,
+      "position": "Attacker",
+      "rating": "6.964516",
+      "captain": false
+     },
+     "substitutes": {
+      "in": 0,
+      "out": 0,
+      "bench": 0
+     },
+     "shots": {
+      "total": 12,
+      "on": 8
+     },
+     "goals": {
+      "total": 0,
+      "conceded": 0,
+      "assists": 4,
+      "saves": null
+     },
+     "passes": {
+      "total": 768,
+      "key": 38,
+      "accuracy": null
+     },
+     "tackles": {
+      "total": 13,
+      "blocks": null,
+      "interceptions": 2
+     },
+     "duels": {
+      "total": 160,
+      "won": 75
+     },
+     "dribbles": {
+      "attempts": 86,
+      "success": 45,
+      "past": null
+     },
+     "fouls": {
+      "drawn": 11,
+      "committed": 6
+     },
+     "cards": {
+      "yellow": 0,
+      "yellowred": 0,
+      "red": 0
+     },
+     "penalty": {
+      "won": null,
+      "commited": null,
+      "scored": 0,
+      "missed": 0,
+      "saved": null
+     }
+    },
+    {
+     "team": {
+      "id": 33,
+      "name": "Manchester United",
+      "logo": "https://media.api-sports.io/football/teams/33.png"
+     },
+     "league": {
+      "id": 45,
+      "name": "FA Cup",
+      "country": "England",
+      "logo": "https://media.api-sports.io/football/leagues/45.png",
+      "flag": "https://media.api-sports.io/flags/gb-eng.svg",
+      "season": 2024
+     },
+     "games": {
+      "appearences": 0,
+      "lineups": 0,
+      "minutes": 0,
+      "number": null,
+      "position": "Attacker",
+      "rating": "6.750000",
+      "captain": false
+     },
+     "substitutes": {
+      "in": 0,
+      "out": 0,
+      "bench": 0
+     },
+     "shots": {
+      "total": null,
+      "on": null
+     },
+     "goals": {
+      "total": 0,
+      "conceded": 0,
+      "assists": 0,
+      "saves": null
+     },
+     "passes": {
+      "total": 69,
+      "key": 4,
+      "accuracy": null
+     },
+     "tackles": {
+      "total": null,
+      "blocks": null,
+      "interceptions": null
+     },
+     "duels": {
+      "total": 12,
+      "won": 4
+     },
+     "dribbles": {
+      "attempts": 8,
+      "success": 4,
+      "past": null
+     },
+     "fouls": {
+      "drawn": null,
+      "committed": null
+     },
+     "cards": {
+      "yellow": 0,
+      "yellowred": 0,
+      "red": 0
+     },
+     "penalty": {
+      "won": null,
+      "commited": null,
+      "scored": 0,
+      "missed": 0,
+      "saved": null
+     }
+    },
+    {
+     "team": {
+      "id": 33,
+      "name": "Manchester United",
+      "logo": "https://media.api-sports.io/football/teams/33.png"
+     },
+     "league": {
+      "id": 3,
+      "name": "UEFA Europa League",
+      "country": "World",
+      "logo": "https://media.api-sports.io/football/leagues/3.png",
+      "flag": null,
+      "season": 2024
+     },
+     "games": {
+      "appearences": 0,
+      "lineups": 0,
+      "minutes": 0,
+      "number": null,
+      "position": "Attacker",
+      "rating": null,
+      "captain": false
+     },
+     "substitutes": {
+      "in": 0,
+      "out": 0,
+      "bench": 0
+     },
+     "shots": {
+      "total": null,
+      "on": null
+     },
+     "goals": {
+      "total": 0,
+      "conceded": null,
+      "assists": null,
+      "saves": null
+     },
+     "passes": {
+      "total": null,
+      "key": null,
+      "accuracy": null
+     },
+     "tackles": {
+      "total": null,
+      "blocks": null,
+      "interceptions": null
+     },
+     "duels": {
+      "total": null,
+      "won": null
+     },
+     "dribbles": {
+      "attempts": null,
+      "success": null,
+      "past": null
+     },
+     "fouls": {
+      "drawn": null,
+      "committed": null
+     },
+     "cards": {
+      "yellow": 0,
+      "yellowred": 0,
+      "red": 0
+     },
+     "penalty": {
+      "won": null,
+      "commited": null,
+      "scored": null,
+      "missed": null,
+      "saved": null
+     }
+    }
+   ]
+  },
+  {
+   "player": {
+    "id": 174,
+    "name": "C. Eriksen",
+    "firstname": "Christian",
+    "lastname": "Dannemann Eriksen",
+    "age": 33,
+    "birth": {
+     "date": "1992-02-14",
+     "place": "Middelfart",
+     "country": "Denmark"
+    },
+    "nationality": "Denmark",
+    "height": "182",
+    "weight": "76",
+    "injured": false,
+    "photo": "https://media.api-sports.io/football/players/174.png"
+   },
+   "statistics": [
+    {
+     "team": {
+      "id": 33,
+      "name": "Manchester United",
+      "logo": "https://media.api-sports.io/football/teams/33.png"
+     },
+     "league": {
+      "id": 39,
+      "name": "Premier League",
+      "country": "England",
+      "logo": "https://media.api-sports.io/football/leagues/39.png",
+      "flag": "https://media.api-sports.io/flags/gb-eng.svg",
+      "season": 2024
+     },
+     "games": {
+      "appearences": 35,
+      "lineups": 22,
+      "minutes": 1092,
+      "number": null,
+      "position": "Midfielder",
+      "rating": "6.936363",
+      "captain": false
+     },
+     "substitutes": {
+      "in": 13,
+      "out": null,
+      "bench": null
+     },
+     "shots": {
+      "total": 8,
+      "on": 2
+     },
+     "goals": {
+      "total": 1,
+      "conceded": 0,
+      "assists": 2,
+      "saves": null
+     },
+     "passes": {
+      "total": 657,
+      "key": 31,
+      "accuracy": null
+     },
+     "tackles": {
+      "total": 19,
+      "blocks": 5,
+      "interceptions": 7
+     },
+     "duels": {
+      "total": 63,
+      "won": 24
+     },
+     "dribbles": {
+      "attempts": 4,
+      "success": null,
+      "past": null
+     },
+     "fouls": {
+      "drawn": 3,
+      "committed": 8
+     },
+     "cards": {
+      "yellow": 4,
+      "yellowred": null,
+      "red": 0
+     },
+     "penalty": {
+      "won": null,
+      "commited": null,
+      "scored": 1,
+      "missed": 0,
+      "saved": null
+     }
+    },
+    {
+     "team": {
+      "id": 33,
+      "name": "Manchester United",
+      "logo": "https://media.api-sports.io/football/teams/33.png"
+     },
+     "league": {
+      "id": 45,
+      "name": "FA Cup",
+      "country": "England",
+      "logo": "https://media.api-sports.io/football/leagues/45.png",
+      "flag": "https://media.api-sports.io/flags/gb-eng.svg",
+      "season": 2024
+     },
+     "games": {
+      "appearences": 3,
+      "lineups": 2,
+      "minutes": 68,
+      "number": null,
+      "position": "Midfielder",
+      "rating": "7.000000",
+      "captain": false
+     },
+     "substitutes": {
+      "in": 1,
+      "out": null,
+      "bench": null
+     },
+     "shots": {
+      "total": 1,
+      "on": 1
+     },
+     "goals": {
+      "total": null,
+      "conceded": 0,
+      "assists": 0,
+      "saves": null
+     },
+     "passes": {
+      "total": 28,
+      "key": 2,
+      "accuracy": null
+     },
+     "tackles": {
+      "total": null,
+      "blocks": null,
+      "interceptions": null
+     },
+     "duels": {
+      "total": null,
+      "won": null
+     },
+     "dribbles": {
+      "attempts": null,
+      "success": null,
+      "past": null
+     },
+     "fouls": {
+      "drawn": null,
+      "committed": null
+     },
+     "cards": {
+      "yellow": 0,
+      "yellowred": null,
+      "red": 0
+     },
+     "penalty": {
+      "won": null,
+      "commited": null,
+      "scored": 0,
+      "missed": 0,
+      "saved": null
+     }
+    },
+    {
+     "team": {
+      "id": 33,
+      "name": "Manchester United",
+      "logo": "https://media.api-sports.io/football/teams/33.png"
+     },
+     "league": {
+      "id": 48,
+      "name": "League Cup",
+      "country": "England",
+      "logo": "https://media.api-sports.io/football/leagues/48.png",
+      "flag": "https://media.api-sports.io/flags/gb-eng.svg",
+      "season": 2024
+     },
+     "games": {
+      "appearences": 2,
+      "lineups": 2,
+      "minutes": 146,
+      "number": null,
+      "position": "Midfielder",
+      "rating": "8.300000",
+      "captain": false
+     },
+     "substitutes": {
+      "in": 0,
+      "out": null,
+      "bench": null
+     },
+     "shots": {
+      "total": 3,
+      "on": 2
+     },
+     "goals": {
+      "total": 2,
+      "conceded": 0,
+      "assists": 1,
+      "saves": null
+     },
+     "passes": {
+      "total": 79,
+      "key": 2,
+      "accuracy": null
+     },
+     "tackles": {
+      "total": null,
+      "blocks": null,
+      "interceptions": null
+     },
+     "duels": {
+      "total": 5,
+      "won": 4
+     },
+     "dribbles": {
+      "attempts": 2,
+      "success": 1,
+      "past": null
+     },
+     "fouls": {
+      "drawn": 3,
+      "committed": null
+     },
+     "cards": {
+      "yellow": 0,
+      "yellowred": null,
+      "red": 0
+     },
+     "penalty": {
+      "won": null,
+      "commited": null,
+      "scored": 0,
+      "missed": 0,
+      "saved": null
+     }
+    },
+    {
+     "team": {
+      "id": 33,
+      "name": "Manchester United",
+      "logo": "https://media.api-sports.io/football/teams/33.png"
+     },
+     "league": {
+      "id": 3,
+      "name": "UEFA Europa League",
+      "country": "World",
+      "logo": "https://media.api-sports.io/football/leagues/3.png",
+      "flag": null,
+      "season": 2024
+     },
+     "games": {
+      "appearences": 15,
+      "lineups": 10,
+      "minutes": 463,
+      "number": null,
+      "position": "Midfielder",
+      "rating": "7.137500",
+      "captain": false
+     },
+     "substitutes": {
+      "in": 5,
+      "out": null,
+      "bench": null
+     },
+     "shots": {
+      "total": 5,
+      "on": 4
+     },
+     "goals": {
+      "total": 2,
+      "conceded": 0,
+      "assists": 2,
+      "saves": null
+     },
+     "passes": {
+      "total": 269,
+      "key": 16,
+      "accuracy": null
+     },
+     "tackles": {
+      "total": 6,
+      "blocks": null,
+      "interceptions": 2
+     },
+     "duels": {
+      "total": 23,
+      "won": 14
+     },
+     "dribbles": {
+      "attempts": 4,
+      "success": 3,
+      "past": null
+     },
+     "fouls": {
+      "drawn": null,
+      "committed": 1
+     },
+     "cards": {
+      "yellow": 0,
+      "yellowred": null,
+      "red": 0
+     },
+     "penalty": {
+      "won": null,
+      "commited": null,
+      "scored": 0,
+      "missed": 0,
+      "saved": null
+     }
+    }
+   ]
+  },
+  {
+   "player": {
+    "id": 526,
+    "name": "A. Onana",
+    "firstname": "André",
+    "lastname": "Onana Onana",
+    "age": 29,
+    "birth": {
+     "date": "1996-04-02",
+     "place": "Nkol Ngok",
+     "country": "Cameroon"
+    },
+    "nationality": "Cameroon",
+    "height": "190",
+    "weight": "93",
+    "injured": false,
+    "photo": "https://media.api-sports.io/football/players/526.png"
+   },
+   "statistics": [
+    {
+     "team": {
+      "id": 33,
+      "name": "Manchester United",
+      "logo": "https://media.api-sports.io/football/teams/33.png"
+     },
+     "league": {
+      "id": 48,
+      "name": "League Cup",
+      "country": "England",
+      "logo": "https://media.api-sports.io/football/leagues/48.png",
+      "flag": "https://media.api-sports.io/flags/gb-eng.svg",
+      "season": 2024
+     },
+     "games": {
+      "appearences": 0,
+      "lineups": 0,
+      "minutes": 0,
+      "number": null,
+      "position": "Goalkeeper",
+      "rating": null,
+      "captain": false
+     },
+     "substitutes": {
+      "in": 0,
+      "out": 0,
+      "bench": 1
+     },
+     "shots": {
+      "total": null,
+      "on": null
+     },
+     "goals": {
+      "total": 0,
+      "conceded": 0,
+      "assists": null,
+      "saves": null
+     },
+     "passes": {
+      "total": null,
+      "key": null,
+      "accuracy": null
+     },
+     "tackles": {
+      "total": null,
+      "blocks": null,
+      "interceptions": null
+     },
+     "duels": {
+      "total": null,
+      "won": null
+     },
+     "dribbles": {
+      "attempts": null,
+      "success": null,
+      "past": null
+     },
+     "fouls": {
+      "drawn": null,
+      "committed": null
+     },
+     "cards": {
+      "yellow": 0,
+      "yellowred": 0,
+      "red": 0
+     },
+     "penalty": {
+      "won": null,
+      "commited": null,
+      "scored": 0,
+      "missed": 0,
+      "saved": 0
+     }
+    },
+    {
+     "team": {
+      "id": 33,
+      "name": "Manchester United",
+      "logo": "https://media.api-sports.io/football/teams/33.png"
+     },
+     "league": {
+      "id": 39,
+      "name": "Premier League",
+      "country": "England",
+      "logo": "https://media.api-sports.io/football/leagues/39.png",
+      "flag": "https://media.api-sports.io/flags/gb-eng.svg",
+      "season": 2024
+     },
+     "games": {
+      "appearences": 34,
+      "lineups": 34,
+      "minutes": 3060,
+      "number": null,
+      "position": "Goalkeeper",
+      "rating": "6.900000",
+      "captain": false
+     },
+     "substitutes": {
+      "in": 0,
+      "out": null,
+      "bench": null
+     },
+     "shots": {
+      "total": null,
+      "on": null
+     },
+     "goals": {
+      "total": null,
+      "conceded": 44,
+      "assists": 0,
+      "saves": 90
+     },
+     "passes": {
+      "total": 1165,
+      "key": 1,
+      "accuracy": null
+     },
+     "tackles": {
+      "total": 2,
+      "blocks": null,
+      "interceptions": null
+     },
+     "duels": {
+      "total": 13,
+      "won": 11
+     },
+     "dribbles": {
+      "attempts": 1,
+      "success": 1,
+      "past": null
+     },
+     "fouls": {
+      "drawn": 2,
+      "committed": null
+     },
+     "cards": {
+      "yellow": 0,
+      "yellowred": null,
+      "red": 0
+     },
+     "penalty": {
+      "won": null,
+      "commited": null,
+      "scored": 0,
+      "missed": 0,
+      "saved": 0
+     }
+    },
+    {
+     "team": {
+      "id": 33,
+      "name": "Manchester United",
+      "logo": "https://media.api-sports.io/football/teams/33.png"
+     },
+     "league": {
+      "id": 45,
+      "name": "FA Cup",
+      "country": "England",
+      "logo": "https://media.api-sports.io/football/leagues/45.png",
+      "flag": "https://media.api-sports.io/flags/gb-eng.svg",
+      "season": 2024
+     },
+     "games": {
+      "appearences": 2,
+      "lineups": 2,
+      "minutes": 210,
+      "number": null,
+      "position": "Goalkeeper",
+      "rating": "6.750000",
+      "captain": false
+     },
+     "substitutes": {
+      "in": 0,
+      "out": null,
+      "bench": null
+     },
+     "shots": {
+      "total": null,
+      "on": null
+     },
+     "goals": {
+      "total": null,
+      "conceded": 2,
+      "assists": 0,
+      "saves": 6
+     },
+     "passes": {
+      "total": 58,
+      "key": null,
+      "accuracy": null
+     },
+     "tackles": {
+      "total": null,
+      "blocks": null,
+      "interceptions": null
+     },
+     "duels": {
+      "total": null,
+      "won": null
+     },
+     "dribbles": {
+      "attempts": null,
+      "success": null,
+      "past": null
+     },
+     "fouls": {
+      "drawn": null,
+      "committed": null
+     },
+     "cards": {
+      "yellow": 0,
+      "yellowred": null,
+      "red": 0
+     },
+     "penalty": {
+      "won": null,
+      "commited": null,
+      "scored": 0,
+      "missed": 0,
+      "saved": 0
+     }
+    },
+    {
+     "team": {
+      "id": 33,
+      "name": "Manchester United",
+      "logo": "https://media.api-sports.io/football/teams/33.png"
+     },
+     "league": {
+      "id": 528,
+      "name": "Community Shield",
+      "country": "England",
+      "logo": "https://media.api-sports.io/football/leagues/528.png",
+      "flag": "https://media.api-sports.io/flags/gb-eng.svg",
+      "season": 2024
+     },
+     "games": {
+      "appearences": 1,
+      "lineups": null,
+      "minutes": null,
+      "number": null,
+      "position": "Goalkeeper",
+      "rating": null,
+      "captain": false
+     },
+     "substitutes": {
+      "in": null,
+      "out": null,
+      "bench": null
+     },
+     "shots": {
+      "total": null,
+      "on": null
+     },
+     "goals": {
+      "total": 0,
+      "conceded": null,
+      "assists": 0,
+      "saves": null
+     },
+     "passes": {
+      "total": null,
+      "key": null,
+      "accuracy": null
+     },
+     "tackles": {
+      "total": null,
+      "blocks": null,
+      "interceptions": null
+     },
+     "duels": {
+      "total": null,
+      "won": null
+     },
+     "dribbles": {
+      "attempts": null,
+      "success": null,
+      "past": null
+     },
+     "fouls": {
+      "drawn": null,
+      "committed": null
+     },
+     "cards": {
+      "yellow": 0,
+      "yellowred": null,
+      "red": 0
+     },
+     "penalty": {
+      "won": null,
+      "commited": null,
+      "scored": null,
+      "missed": null,
+      "saved": null
+     }
+    },
+    {
+     "team": {
+      "id": 33,
+      "name": "Manchester United",
+      "logo": "https://media.api-sports.io/football/teams/33.png"
+     },
+     "league": {
+      "id": 3,
+      "name": "UEFA Europa League",
+      "country": "World",
+      "logo": "https://media.api-sports.io/football/leagues/3.png",
+      "flag": null,
+      "season": 2024
+     },
+     "games": {
+      "appearences": 13,
+      "lineups": 13,
+      "minutes": 1200,
+      "number": null,
+      "position": "Goalkeeper",
+      "rating": "6.861538",
+      "captain": false
+     },
+     "substitutes": {
+      "in": 0,
+      "out": null,
+      "bench": null
+     },
+     "shots": {
+      "total": null,
+      "on": null
+     },
+     "goals": {
+      "total": null,
+      "conceded": 18,
+      "assists": 0,
+      "saves": 31
+     },
+     "passes": {
+      "total": 391,
+      "key": null,
+      "accuracy": null
+     },
+     "tackles": {
+      "total": 2,
+      "blocks": null,
+      "interceptions": null
+     },
+     "duels": {
+      "total": 7,
+      "won": 7
+     },
+     "dribbles": {
+      "attempts": 1,
+      "success": 1,
+      "past": null
+     },
+     "fouls": {
+      "drawn": 2,
+      "committed": null
+     },
+     "cards": {
+      "yellow": 1,
+      "yellowred": null,
+      "red": 0
+     },
+     "penalty": {
+      "won": null,
+      "commited": null,
+      "scored": 0,
+      "missed": 0,
+      "saved": 0
+     }
+    }
+   ]
+  },
+  {
+   "player": {
+    "id": 739,
+    "name": "Reguilón",
+    "firstname": "Sergio",
+    "lastname": "Reguilón Rodríguez",
+    "age": 29,
+    "birth": {
+     "date": "1996-12-16",
+     "place": "Madrid",
+     "country": "Spain"
+    },
+    "nationality": "Spain",
+    "height": "178 cm",
+    "weight": "68 kg",
+    "injured": false,
+    "photo": "https://media.api-sports.io/football/players/739.png"
+   },
+   "statistics": [
+    {
+     "team": {
+      "id": 33,
+      "name": "Manchester United",
+      "logo": "https://media.api-sports.io/football/teams/33.png"
+     },
+     "league": {
+      "id": 39,
+      "name": "Premier League",
+      "country": "England",
+      "logo": "https://media.api-sports.io/football/leagues/39.png",
+      "flag": "https://media.api-sports.io/flags/gb-eng.svg",
+      "season": 2024
+     },
+     "games": {
+      "appearences": null,
+      "lineups": null,
+      "minutes": null,
+      "number": null,
+      "position": "Defender",
+      "rating": null,
+      "captain": false
+     },
+     "substitutes": {
+      "in": null,
+      "out": null,
+      "bench": null
+     },
+     "shots": {
+      "total": null,
+      "on": null
+     },
+     "goals": {
+      "total": null,
+      "conceded": null,
+      "assists": null,
+      "saves": null
+     },
+     "passes": {
+      "total": null,
+      "key": null,
+      "accuracy": null
+     },
+     "tackles": {
+      "total": null,
+      "blocks": null,
+      "interceptions": null
+     },
+     "duels": {
+      "total": null,
+      "won": null
+     },
+     "dribbles": {
+      "attempts": null,
+      "success": null,
+      "past": null
+     },
+     "fouls": {
+      "drawn": null,
+      "committed": null
+     },
+     "cards": {
+      "yellow": null,
+      "yellowred": null,
+      "red": null
+     },
+     "penalty": {
+      "won": null,
+      "commited": null,
+      "scored": null,
+      "missed": null,
+      "saved": null
+     }
+    }
+   ]
+  },
+  {
+   "player": {
+    "id": 1165,
+    "name": "Matheus Cunha",
+    "firstname": "Matheus Santos",
+    "lastname": "Carneiro da Cunha",
+    "age": 26,
+    "birth": {
+     "date": "1999-05-27",
+     "place": "João Pessoa",
+     "country": "Brazil"
+    },
+    "nationality": "Brazil",
+    "height": "183",
+    "weight": "76",
+    "injured": false,
+    "photo": "https://media.api-sports.io/football/players/1165.png"
+   },
+   "statistics": [
+    {
+     "team": {
+      "id": 33,
+      "name": "Manchester United",
+      "logo": "https://media.api-sports.io/football/teams/33.png"
+     },
+     "league": {
+      "id": 39,
+      "name": "Premier League",
+      "country": "England",
+      "logo": "https://media.api-sports.io/football/leagues/39.png",
+      "flag": "https://media.api-sports.io/flags/gb-eng.svg",
+      "season": 2024
+     },
+     "games": {
+      "appearences": 33,
+      "lineups": 32,
+      "minutes": 2600,
+      "number": null,
+      "position": "Attacker",
+      "rating": "7.630303",
+      "captain": false
+     },
+     "substitutes": {
+      "in": 1,
+      "out": null,
+      "bench": null
+     },
+     "shots": {
+      "total": 80,
+      "on": 44
+     },
+     "goals": {
+      "total": 15,
+      "conceded": 0,
+      "assists": 6,
+      "saves": null
+     },
+     "passes": {
+      "total": 949,
+      "key": 58,
+      "accuracy": null
+     },
+     "tackles": {
+      "total": 38,
+      "blocks": 1,
+      "interceptions": 17
+     },
+     "duels": {
+      "total": 394,
+      "won": 183
+     },
+     "dribbles": {
+      "attempts": 122,
+      "success": 61,
+      "past": null
+     },
+     "fouls": {
+      "drawn": 71,
+      "committed": 42
+     },
+     "cards": {
+      "yellow": 4,
+      "yellowred": null,
+      "red": 0
+     },
+     "penalty": {
+      "won": null,
+      "commited": null,
+      "scored": 0,
+      "missed": 0,
+      "saved": null
+     }
+    },
+    {
+     "team": {
+      "id": 33,
+      "name": "Manchester United",
+      "logo": "https://media.api-sports.io/football/teams/33.png"
+     },
+     "league": {
+      "id": 45,
+      "name": "FA Cup",
+      "country": "England",
+      "logo": "https://media.api-sports.io/football/leagues/45.png",
+      "flag": "https://media.api-sports.io/flags/gb-eng.svg",
+      "season": 2024
+     },
+     "games": {
+      "appearences": 1,
+      "lineups": 1,
+      "minutes": 90,
+      "number": null,
+      "position": "Attacker",
+      "rating": "8.200000",
+      "captain": false
+     },
+     "substitutes": {
+      "in": 0,
+      "out": null,
+      "bench": null
+     },
+     "shots": {
+      "total": 8,
+      "on": 5
+     },
+     "goals": {
+      "total": 1,
+      "conceded": 0,
+      "assists": 0,
+      "saves": null
+     },
+     "passes": {
+      "total": 40,
+      "key": 2,
+      "accuracy": null
+     },
+     "tackles": {
+      "total": 7,
+      "blocks": null,
+      "interceptions": 1
+     },
+     "duels": {
+      "total": 19,
+      "won": 9
+     },
+     "dribbles": {
+      "attempts": 3,
+      "success": null,
+      "past": null
+     },
+     "fouls": {
+      "drawn": 2,
+      "committed": 3
+     },
+     "cards": {
+      "yellow": 0,
+      "yellowred": null,
+      "red": 0
+     },
+     "penalty": {
+      "won": null,
+      "commited": null,
+      "scored": 0,
+      "missed": 0,
+      "saved": null
+     }
+    },
+    {
+     "team": {
+      "id": 33,
+      "name": "Manchester United",
+      "logo": "https://media.api-sports.io/football/teams/33.png"
+     },
+     "league": {
+      "id": 48,
+      "name": "League Cup",
+      "country": "England",
+      "logo": "https://media.api-sports.io/football/leagues/48.png",
+      "flag": "https://media.api-sports.io/flags/gb-eng.svg",
+      "season": 2024
+     },
+     "games": {
+      "appearences": 1,
+      "lineups": 1,
+      "minutes": 19,
+      "number": null,
+      "position": "Attacker",
+      "rating": "6.200000",
+      "captain": false
+     },
+     "substitutes": {
+      "in": 0,
+      "out": null,
+      "bench": null
+     },
+     "shots": {
+      "total": null,
+      "on": null
+     },
+     "goals": {
+      "total": null,
+      "conceded": 0,
+      "assists": 0,
+      "saves": null
+     },
+     "passes": {
+      "total": 1,
+      "key": null,
+      "accuracy": null
+     },
+     "tackles": {
+      "total": null,
+      "blocks": null,
+      "interceptions": null
+     },
+     "duels": {
+      "total": 5,
+      "won": 1
+     },
+     "dribbles": {
+      "attempts": null,
+      "success": null,
+      "past": null
+     },
+     "fouls": {
+      "drawn": null,
+      "committed": null
+     },
+     "cards": {
+      "yellow": 0,
+      "yellowred": null,
+      "red": 0
+     },
+     "penalty": {
+      "won": null,
+      "commited": null,
+      "scored": 0,
+      "missed": 0,
+      "saved": null
+     }
+    }
+   ]
+  },
+  {
+   "player": {
+    "id": 1485,
+    "name": "Bruno Fernandes",
+    "firstname": "Bruno Miguel",
+    "lastname": "Borges Fernandes",
+    "age": 31,
+    "birth": {
+     "date": "1994-09-08",
+     "place": "Maia",
+     "country": "Portugal"
+    },
+    "nationality": "Portugal",
+    "height": "179",
+    "weight": "66",
+    "injured": false,
+    "photo": "https://media.api-sports.io/football/players/1485.png"
+   },
+   "statistics": [
+    {
+     "team": {
+      "id": 33,
+      "name": "Manchester United",
+      "logo": "https://media.api-sports.io/football/teams/33.png"
+     },
+     "league": {
+      "id": 39,
+      "name": "Premier League",
+      "country": "England",
+      "logo": "https://media.api-sports.io/football/leagues/39.png",
+      "flag": "https://media.api-sports.io/flags/gb-eng.svg",
+      "season": 2024
+     },
+     "games": {
+      "appearences": 36,
+      "lineups": 35,
+      "minutes": 3024,
+      "number": null,
+      "position": "Midfielder",
+      "rating": "7.605555",
+      "captain": false
+     },
+     "substitutes": {
+      "in": 1,
+      "out": null,
+      "bench": null
+     },
+     "shots": {
+      "total": 65,
+      "on": 29
+     },
+     "goals": {
+      "total": 8,
+      "conceded": 0,
+      "assists": 10,
+      "saves": null
+     },
+     "passes": {
+      "total": 2020,
+      "key": 91,
+      "accuracy": 45
+     },
+     "tackles": {
+      "total": 84,
+      "blocks": 6,
+      "interceptions": 26
+     },
+     "duels": {
+      "total": 359,
+      "won": 174
+     },
+     "dribbles": {
+      "attempts": 61,
+      "success": 28,
+      "past": null
+     },
+     "fouls": {
+      "drawn": 40,
+      "committed": 32
+     },
+     "cards": {
+      "yellow": 5,
+      "yellowred": null,
+      "red": 2
+     },
+     "penalty": {
+      "won": null,
+      "commited": null,
+      "scored": 3,
+      "missed": 0,
+      "saved": null
+     }
+    },
+    {
+     "team": {
+      "id": 33,
+      "name": "Manchester United",
+      "logo": "https://media.api-sports.io/football/teams/33.png"
+     },
+     "league": {
+      "id": 45,
+      "name": "FA Cup",
+      "country": "England",
+      "logo": "https://media.api-sports.io/football/leagues/45.png",
+      "flag": "https://media.api-sports.io/flags/gb-eng.svg",
+      "season": 2024
+     },
+     "games": {
+      "appearences": 3,
+      "lineups": 3,
+      "minutes": 330,
+      "number": null,
+      "position": "Midfielder",
+      "rating": "8.100000",
+      "captain": false
+     },
+     "substitutes": {
+      "in": 0,
+      "out": null,
+      "bench": null
+     },
+     "shots": {
+      "total": 4,
+      "on": 4
+     },
+     "goals": {
+      "total": 2,
+      "conceded": 0,
+      "assists": 1,
+      "saves": null
+     },
+     "passes": {
+      "total": 166,
+      "key": 8,
+      "accuracy": 41
+     },
+     "tackles": {
+      "total": 7,
+      "blocks": null,
+      "interceptions": 2
+     },
+     "duels": {
+      "total": 39,
+      "won": 20
+     },
+     "dribbles": {
+      "attempts": 8,
+      "success": 7,
+      "past": null
+     },
+     "fouls": {
+      "drawn": 4,
+      "committed": 5
+     },
+     "cards": {
+      "yellow": 1,
+      "yellowred": null,
+      "red": 0
+     },
+     "penalty": {
+      "won": null,
+      "commited": null,
+      "scored": 0,
+      "missed": 0,
+      "saved": null
+     }
+    },
+    {
+     "team": {
+      "id": 33,
+      "name": "Manchester United",
+      "logo": "https://media.api-sports.io/football/teams/33.png"
+     },
+     "league": {
+      "id": 48,
+      "name": "League Cup",
+      "country": "England",
+      "logo": "https://media.api-sports.io/football/leagues/48.png",
+      "flag": "https://media.api-sports.io/flags/gb-eng.svg",
+      "season": 2024
+     },
+     "games": {
+      "appearences": 3,
+      "lineups": 2,
+      "minutes": 208,
+      "number": null,
+      "position": "Midfielder",
+      "rating": "8.400000",
+      "captain": false
+     },
+     "substitutes": {
+      "in": 1,
+      "out": null,
+      "bench": null
+     },
+     "shots": {
+      "total": 4,
+      "on": 2
+     },
+     "goals": {
+      "total": 2,
+      "conceded": 0,
+      "assists": 2,
+      "saves": null
+     },
+     "passes": {
+      "total": 134,
+      "key": 13,
+      "accuracy": null
+     },
+     "tackles": {
+      "total": 2,
+      "blocks": null,
+      "interceptions": 1
+     },
+     "duels": {
+      "total": 21,
+      "won": 9
+     },
+     "dribbles": {
+      "attempts": 4,
+      "success": 3,
+      "past": null
+     },
+     "fouls": {
+      "drawn": 2,
+      "committed": 3
+     },
+     "cards": {
+      "yellow": 1,
+      "yellowred": null,
+      "red": 0
+     },
+     "penalty": {
+      "won": null,
+      "commited": null,
+      "scored": 0,
+      "missed": 0,
+      "saved": null
+     }
+    },
+    {
+     "team": {
+      "id": 33,
+      "name": "Manchester United",
+      "logo": "https://media.api-sports.io/football/teams/33.png"
+     },
+     "league": {
+      "id": 528,
+      "name": "Community Shield",
+      "country": "England",
+      "logo": "https://media.api-sports.io/football/leagues/528.png",
+      "flag": "https://media.api-sports.io/flags/gb-eng.svg",
+      "season": 2024
+     },
+     "games": {
+      "appearences": 1,
+      "lineups": null,
+      "minutes": null,
+      "number": null,
+      "position": "Midfielder",
+      "rating": null,
+      "captain": false
+     },
+     "substitutes": {
+      "in": null,
+      "out": null,
+      "bench": null
+     },
+     "shots": {
+      "total": null,
+      "on": null
+     },
+     "goals": {
+      "total": 0,
+      "conceded": null,
+      "assists": 1,
+      "saves": null
+     },
+     "passes": {
+      "total": null,
+      "key": null,
+      "accuracy": null
+     },
+     "tackles": {
+      "total": null,
+      "blocks": null,
+      "interceptions": null
+     },
+     "duels": {
+      "total": null,
+      "won": null
+     },
+     "dribbles": {
+      "attempts": null,
+      "success": null,
+      "past": null
+     },
+     "fouls": {
+      "drawn": null,
+      "committed": null
+     },
+     "cards": {
+      "yellow": 0,
+      "yellowred": null,
+      "red": 0
+     },
+     "penalty": {
+      "won": null,
+      "commited": null,
+      "scored": null,
+      "missed": null,
+      "saved": null
+     }
+    },
+    {
+     "team": {
+      "id": 33,
+      "name": "Manchester United",
+      "logo": "https://media.api-sports.io/football/teams/33.png"
+     },
+     "league": {
+      "id": 3,
+      "name": "UEFA Europa League",
+      "country": "World",
+      "logo": "https://media.api-sports.io/football/leagues/3.png",
+      "flag": null,
+      "season": 2024
+     },
+     "games": {
+      "appearences": 14,
+      "lineups": 14,
+      "minutes": 1281,
+      "number": null,
+      "position": "Midfielder",
+      "rating": "8.050000",
+      "captain": false
+     },
+     "substitutes": {
+      "in": 0,
+      "out": null,
+      "bench": null
+     },
+     "shots": {
+      "total": 32,
+      "on": 15
+     },
+     "goals": {
+      "total": 7,
+      "conceded": 0,
+      "assists": 4,
+      "saves": null
+     },
+     "passes": {
+      "total": 859,
+      "key": 44,
+      "accuracy": 48
+     },
+     "tackles": {
+      "total": 32,
+      "blocks": 2,
+      "interceptions": 7
+     },
+     "duels": {
+      "total": 147,
+      "won": 80
+     },
+     "dribbles": {
+      "attempts": 24,
+      "success": 9,
+      "past": null
+     },
+     "fouls": {
+      "drawn": 22,
+      "committed": 13
+     },
+     "cards": {
+      "yellow": 3,
+      "yellowred": null,
+      "red": 1
+     },
+     "penalty": {
+      "won": null,
+      "commited": null,
+      "scored": 4,
+      "missed": 0,
+      "saved": null
+     }
+    }
+   ]
+  }
+ ]
+}
