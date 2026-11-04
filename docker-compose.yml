@@ -30,6 +30,10 @@ services:
     volumes:
       # Whole backend folder, so new migrations and tests appear without rebuilding
       - ./backend:/app
+      # Transfermarkt snapshot, read-only (stays out of Git and out of the image)
+      - ./data:/data:ro
+      # Cached API responses, written by the API-Football importer
+      - ./raw:/raw
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     depends_on:
       db:
