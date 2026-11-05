@@ -25,3 +25,26 @@ export function surname(name: string): string {
   const parts = name.trim().split(/\s+/);
   return parts.length > 1 ? parts.slice(1).join(" ") : name;
 }
+
+/** A metric's raw value: rates as a percentage, per-90 values with two decimals. */
+export function metricValue(kind: "per90" | "rate", value: number | null): string {
+  if (value == null) return "–";
+  return kind === "rate" ? `${Math.round(value * 100)}%` : value.toFixed(2);
+}
+
+/** Value for money: score points above (+) or below (−) what the player's price predicts. */
+export function signed(n: number | null | undefined, digits = 1): string {
+  if (n == null) return "–";
+  const t = Math.abs(n).toFixed(digits);
+  return n > 0 ? `+${t}` : n < 0 ? `−${t}` : t;
+}
+
+export const RELIABILITY_TEXT: Record<string, string> = {
+  high: "High: 1,800+ league minutes",
+  medium: "Medium: 900–1,799 league minutes",
+  low: "Low: under 900 minutes, or many statistics missing",
+};
+
+export function num(n: number | null | undefined): string {
+  return n == null ? "–" : n.toLocaleString("en");
+}

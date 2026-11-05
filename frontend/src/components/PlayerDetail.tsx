@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import type { PlayerOut } from "../lib/api";
 import { eur, ROLE_NAMES } from "../lib/format";
 
@@ -34,6 +35,9 @@ export default function PlayerDetail({ p, onClose }: { p: PlayerOut; onClose: ()
         </div>
       </dl>
       <p className="mt-4 text-sm text-ink-soft">Reliability: {RELIABILITY[p.reliability] ?? p.reliability}</p>
+      <Link to={`/players/${p.player_id}`} className="mt-3 inline-block text-sm font-semibold underline underline-offset-4">
+        Open full profile
+      </Link>
       {p.position_consistent === false && (
         <p className="mt-1 text-sm text-signal">
           In 2024/25 he was listed in a different position from his current role, so his score compares him with players he may not have played among.

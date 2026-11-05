@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { eur, parseMoney, surname } from "./format";
+import { eur, metricValue, parseMoney, signed, surname } from "./format";
 
 describe("parseMoney", () => {
   it("reads the ways people type budgets", () => {
@@ -31,5 +31,19 @@ describe("surname", () => {
     expect(surname("Marc Bartra")).toBe("Bartra");
     expect(surname("Lucas Vázquez Iglesias")).toBe("Vázquez Iglesias");
     expect(surname("Pedro")).toBe("Pedro");
+  });
+});
+
+
+describe("metricValue and signed", () => {
+  it("formats rates as percentages and per-90 values with two decimals", () => {
+    expect(metricValue("rate", 0.537)).toBe("54%");
+    expect(metricValue("per90", 1.2345)).toBe("1.23");
+    expect(metricValue("per90", null)).toBe("–");
+  });
+  it("puts a sign on value for money", () => {
+    expect(signed(12.34)).toBe("+12.3");
+    expect(signed(-4)).toBe("−4.0");
+    expect(signed(null)).toBe("–");
   });
 });

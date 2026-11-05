@@ -62,6 +62,61 @@ export interface ScenarioSummary {
 }
 export interface Scenario extends ScenarioSummary { request: OptimizeRequest; result: OptimizeResponse; }
 
+export interface League { id: number; name: string; country: string; scored_players: number; }
+
+export interface PlayerRow {
+  player_id: number; name: string; age: number | null; nationality: string | null; role: Role;
+  league_id: number; league: string; club: string; score: number; score_adjusted: number | null;
+  value_for_money: number | null; reliability: string; minutes: number; minutes_next: number;
+  price_eur: number | null; valuation_date: string | null; position_consistent: boolean | null;
+}
+export interface PlayerPage { total: number; limit: number; offset: number; items: PlayerRow[]; }
+
+export type SortKey = "score" | "price_eur" | "value_for_money" | "age" | "minutes" | "minutes_next" | "name";
+export interface PlayerQuery {
+  q?: string; role?: Role[]; league_id?: number[]; age_min?: number; age_max?: number; max_price_eur?: number;
+  min_minutes?: number; min_minutes_next?: number; sort?: SortKey; order?: "asc" | "desc"; limit?: number; offset?: number;
+}
+
+export interface Metric {
+  key: string; label: string; kind: "per90" | "rate"; lower_is_better: boolean;
+  value: number | null; percentile: number | null; weight: number | null;
+}
+export interface Score {
+  season: number; league_id: number; league: string; role: Role; score: number; score_adjusted: number | null;
+  value_for_money: number | null; value_for_money_note: string | null; reliability: string; minutes: number | null;
+  weight_coverage: number | null; dropped_metrics: string[];
+  position_check: { api_position: string | null; consistent: boolean | null } | null; metrics: Metric[];
+}
+export interface SeasonStats {
+  season: number; club: string; league: string; source: string;
+  [field: string]: number | string | null;
+}
+export interface RecentRow { club: string; league: string; appearances: number | null; minutes: number | null;
+  goals: number | null; assists: number | null; cards_yellow: number | null; cards_red: number | null; }
+export interface Profile {
+  id: number; name: string; birth_date: string | null; age: number | null; nationality: string | null;
+  foot: string | null; height_cm: number | null; primary_position: string | null; secondary_position: string | null;
+  market_value: { value_eur: number; valuation_date: string; source: string } | null;
+  value_history: { date: string; value_eur: number }[];
+  scores: Score[];
+  season_stats: SeasonStats[];
+  recent_form: { season: number; source: string; rows: RecentRow[];
+    totals: { appearances: number; minutes: number; goals: number; assists: number; cards_yellow: number; cards_red: number } | null };
+}
+export interface Comparison { players: Profile[]; same_role: boolean; }
+
+function query(params: Record<string, unknown>): string {
+  const u = new URLSearchParams();
+  for (const [k, v] of Object.entries(params)) {
+    if (v == null || v === "") continue;
+    if (Array.isArray(v)) v.forEach((x) => u.append(k, String(x)));
+    else u.set(k, String(v));
+  }
+  const s = u.toString();
+  return s ? `?${s}` : "";
+}
+
 export class ApiError extends Error {
   constructor(public status: number, message: string, public details: { field: string; message: string }[] = []) {
     super(message);
@@ -90,6 +145,8 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   if (!res.ok) {
     if (res.status === 401 && token) onUnauthorized();
     const err = body?.error;
+    // a failed login follows OAuth2: {"error": "invalid_grant", "error_description": "..."}
+    if (typeof err === "string") throw new ApiError(res.status, body.error_description ?? err);
     throw new ApiError(res.status, err?.message ?? `Request failed (${res.status})`, err?.details ?? []);
   }
   return body as T;
@@ -111,4 +168,8 @@ export const api = {
   scenarios: () => request<ScenarioSummary[]>("/scenarios"),
   scenario: (id: number) => request<Scenario>(`/scenarios/${id}`),
   deleteScenario: (id: number) => request<void>(`/scenarios/${id}`, { method: "DELETE" }),
+  leagues: () => request<League[]>("/leagues"),
+  players: (q: PlayerQuery) => request<PlayerPage>(`/players${query({ ...q })}`),
+  player: (id: number) => request<Profile>(`/players/${id}`),
+  compare: (ids: number[]) => request<Comparison>(`/players/compare${query({ ids })}`),
 };

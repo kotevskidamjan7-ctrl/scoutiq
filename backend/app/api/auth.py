@@ -1,6 +1,7 @@
 """Accounts: register, log in, current user (FR-15)."""
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import JSONResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -27,13 +28,15 @@ def register(body: RegisterRequest, db: Session = Depends(get_db)) -> AppUser:
 
 
 @router.post("/login", response_model=TokenOut)
-def login(form: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)) -> TokenOut:
+def login(form: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)) -> TokenOut | JSONResponse:
     """Form fields `username` (your email) and `password` - the standard OAuth2 form, so the
     Authorize button on /docs works."""
     user = db.scalar(select(AppUser).where(AppUser.email == form.username.strip().lower()))
     if user is None or not verify_password(form.password, user.password_hash):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Wrong email or password",
-                            headers={"WWW-Authenticate": "Bearer"})
+        # The one exception to the uniform error format: a failed token request follows OAuth2
+        # (RFC 6749 section 5.2), where "error" is a text code. Swagger's Authorize dialog reads it.
+        return JSONResponse({"error": "invalid_grant", "error_description": "Wrong email or password"},
+                            status_code=status.HTTP_401_UNAUTHORIZED, headers={"WWW-Authenticate": "Bearer"})
     return TokenOut(access_token=create_access_token(user.id, user.role),
                     expires_in_minutes=get_settings().jwt_minutes)
 

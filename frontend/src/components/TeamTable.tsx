@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import type { PlayerOut } from "../lib/api";
 import { eur, ROLE_NAMES } from "../lib/format";
 
@@ -32,9 +33,10 @@ export default function TeamTable({ players, selectedId, onSelect, bestIds }: Pr
             >
               <td className="py-2 pr-3 text-ink-soft">{p.slot}</td>
               <td className="py-2 pr-3">
-                <button type="button" className="text-left font-semibold" onClick={() => onSelect?.(p)}>
+                <Link to={`/players/${p.player_id}`} onClick={(e) => e.stopPropagation()}
+                      className="font-semibold underline-offset-4 hover:underline">
                   {p.name}
-                </button>
+                </Link>
                 <span className="block text-xs text-ink-faint">
                   {ROLE_NAMES[p.role]}
                   {bestIds && !bestIds.has(p.player_id) && ", not in the best team"}

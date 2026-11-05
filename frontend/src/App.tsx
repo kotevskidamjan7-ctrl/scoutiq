@@ -6,6 +6,9 @@ import AuthPage from "./pages/AuthPage";
 import Builder from "./pages/Builder";
 import Scenarios from "./pages/Scenarios";
 import ScenarioView from "./pages/ScenarioView";
+import Explorer from "./pages/Explorer";
+import Profile from "./pages/Profile";
+import Compare from "./pages/Compare";
 
 function RequireAuth({ children }: { children: ReactNode }) {
   const { user, ready } = useAuth();
@@ -22,6 +25,9 @@ export default function App() {
       <Route path="/register" element={<AuthPage mode="register" />} />
       <Route element={<RequireAuth><Shell /></RequireAuth>}>
         <Route index element={<Builder />} />
+        <Route path="players" element={<Explorer />} />
+        <Route path="players/:id" element={<Profile />} />
+        <Route path="compare" element={<Compare />} />
         <Route path="scenarios" element={<Scenarios />} />
         <Route path="scenarios/:id" element={<ScenarioView />} />
       </Route>
