@@ -73,7 +73,8 @@ def main() -> None:
     ap.add_argument("--leagues", help="comma-separated league names, e.g. 'Serie A,La Liga'")
     ap.add_argument("--max-price")
     ap.add_argument("--min-minutes", type=int, default=900)
-    ap.add_argument("--min-minutes-next", type=int, help="minimum 2025/26 league minutes")
+    ap.add_argument("--min-minutes-next", type=int, default=900,
+                    help="minimum league minutes in 2025/26 (default 900 = still playing regularly; 0 = off)")
     ap.add_argument("--max-per-club", type=int)
     ap.add_argument("--alternatives", type=int, default=2)
     ap.add_argument("--score", choices=["within", "adjusted"], default="within")
@@ -92,7 +93,7 @@ def main() -> None:
 
     common = dict(age_min=a.age_min, age_max=a.age_max, league_ids=league_ids,
                   max_price=parse_money(a.max_price) if a.max_price else None, min_minutes=a.min_minutes,
-                  min_minutes_next=a.min_minutes_next, max_per_club=a.max_per_club, alternatives=a.alternatives)
+                  min_minutes_next=a.min_minutes_next or None, max_per_club=a.max_per_club, alternatives=a.alternatives)
     budget = parse_money(a.budget)
     if a.needs:
         req = positions_request(parse_needs(a.needs), budget, **common)
@@ -107,7 +108,9 @@ def main() -> None:
     print(f"\nScoutIQ optimizer: budget {fmt_eur(budget)}, "
           f"{req.formation or 'signings ' + ', '.join(f'{n} {r}' for r, n in req.role_min.items() if n)}"
           f"{' squad of ' + str(req.squad_size) if a.squad else ''}; "
-          f"{sol.candidates_considered} eligible players; score: {a.score}-league")
+          f"{sol.candidates_considered} eligible players; score: {a.score}-league; "
+          + (f"still playing in {a.season + 1}/{str(a.season + 2)[2:]}: >= {a.min_minutes_next} league minutes"
+             if a.min_minutes_next else "recent-form filter off"))
     print(f"  status: {sol.status.upper()}  solve time {sol.solve_time_ms:.0f} ms")
 
     if sol.team is None:

@@ -166,3 +166,39 @@ def test_matching_is_one_to_one_and_uses_venue_as_evidence():
 def test_no_match_below_threshold():
     matches, unmatched = match_clubs([{"id": 1, "name": "Arsenal"}], [{"club_id": 9, "name": "Chelsea Football Club"}])
     assert matches == [] and unmatched[0]["id"] == 1
+
+
+# ---------- enable-league ----------
+
+from ingestion.api_football import check_league_response  # noqa: E402
+
+
+class _L:
+    def __init__(self, country):
+        self.country = country
+
+
+def _league_body(country="Portugal", players=True, year=2024, kind="League"):
+    # same shape as the real /leagues response seen in Phase 1b (league, country, seasons[].coverage)
+    return {"errors": [], "response": [{
+        "league": {"id": 94, "name": "Primeira Liga", "type": kind},
+        "country": {"name": country},
+        "seasons": [{"year": year, "coverage": {"players": players, "fixtures": {"statistics_players": players}}}],
+    }]}
+
+
+def test_league_check_accepts_matching_league():
+    problems, info = check_league_response(_league_body(), _L("Portugal"), 2024)
+    assert problems == [] and info["name"] == "Primeira Liga"
+
+
+def test_league_check_refuses_wrong_country_cup_or_missing_coverage():
+    assert check_league_response(_league_body(country="Brazil"), _L("Portugal"), 2024)[0]
+    assert check_league_response(_league_body(kind="Cup"), _L("Portugal"), 2024)[0]
+    assert check_league_response(_league_body(players=False), _L("Portugal"), 2024)[0]
+    assert check_league_response(_league_body(year=2023), _L("Portugal"), 2024)[0]
+    assert check_league_response({"response": []}, _L("Portugal"), 2024)[0]
+
+
+def test_turkiye_matches_turkey():
+    assert check_league_response(_league_body(country="Turkey"), _L("Türkiye"), 2024)[0] == []

@@ -6,6 +6,7 @@ Commands (inside the backend container):
     python -m ingestion.api_football map-clubs   # link API teams to Transfermarkt clubs (no requests)
     python -m ingestion.api_football load        # link players + store stats from the cache (no requests)
     python -m ingestion.api_football gap-fill    # fetch own records of regulars missing after `load`
+    python -m ingestion.api_football enable-league --tm PO1 --af 94   # verify an id (1 request), then enable
 
 `fetch` is resumable: run it once a day until `status` says all pages are cached.
 The free plan only serves pages 1-3 of /players; teams with more pages are listed
@@ -403,6 +404,70 @@ def cmd_gap_fill(args) -> None:
           + ("" if finished else " Then run gap-fill again tomorrow for the rest."))
 
 
+# =====================================================================
+# enable-league
+# =====================================================================
+
+COUNTRY_ALIASES = {"turkiye": "turkey", "czechia": "czech republic", "north macedonia": "macedonia"}
+
+
+def _country_key(name: str | None) -> str:
+    key = normalize_name(name)
+    return COUNTRY_ALIASES.get(key, key)
+
+
+def check_league_response(body: dict, league: League, season: int) -> tuple[list[str], dict]:
+    """Compare an API-Football /leagues response with our league row. Returns (problems, info)."""
+    items = body.get("response") or []
+    if not items:
+        return ["API-Football returned no league for this id and season"], {}
+    item = items[0]
+    info = {
+        "name": (item.get("league") or {}).get("name"),
+        "type": (item.get("league") or {}).get("type"),
+        "country": (item.get("country") or {}).get("name"),
+    }
+    problems = []
+    if _country_key(info["country"]) != _country_key(league.country):
+        problems.append(f"country is '{info['country']}', expected '{league.country}'")
+    if info["type"] and info["type"].lower() != "league":
+        problems.append(f"competition type is '{info['type']}', not a league")
+    season_row = next((s for s in item.get("seasons") or [] if s.get("year") == season), None)
+    if season_row is None:
+        problems.append(f"season {season} not listed")
+    else:
+        cov = season_row.get("coverage") or {}
+        info["players"] = cov.get("players")
+        info["statistics_players"] = (cov.get("fixtures") or {}).get("statistics_players")
+        if not cov.get("players"):
+            problems.append(f"no player coverage for season {season}")
+    return problems, info
+
+
+def cmd_enable_league(args) -> None:
+    settings = get_settings()
+    client = ApiFootballClient(settings.api_football_key, cache_dir(), max_requests=3)
+    with SessionLocal() as session:
+        league = session.scalar(select(League).where(League.tm_competition_id == args.tm))
+        if league is None:
+            sys.exit(f"No league with Transfermarkt code {args.tm}")
+        clash = session.scalar(select(League).where(League.apifootball_id == args.af, League.id != league.id))
+        if clash is not None:
+            sys.exit(f"API-Football id {args.af} is already used by {clash.name}")
+        body = client.get("leagues", {"id": args.af, "season": args.season})
+        problems, info = check_league_response(body, league, args.season)
+        print(f"{league.name} ({league.country}, {args.tm}) vs API-Football id {args.af}: "
+              f"'{info.get('name')}', {info.get('country')}, players={info.get('players')}, "
+              f"statistics_players={info.get('statistics_players')}")
+        if problems:
+            sys.exit("Not enabled: " + "; ".join(problems))
+        league.apifootball_id = args.af
+        league.enabled = True
+        session.commit()
+    print(f"Enabled. Next: `python -m ingestion.transfermarkt` to load its players and values, "
+          f"then `fetch` continues with its teams after the leagues already in progress.")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="API-Football importer")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -421,9 +486,13 @@ def main() -> None:
     p_gap.add_argument("--min-minutes", type=int, default=GAP_MIN_MINUTES)
     p_gap.add_argument("--only-linked", action="store_true",
                        help="only players whose API-Football id is known (safe while fetch is unfinished)")
+    p_en = sub.add_parser("enable-league", help="verify a league's API-Football id (1 request) and enable it")
+    p_en.add_argument("--tm", required=True, help="Transfermarkt competition code, e.g. PO1")
+    p_en.add_argument("--af", required=True, type=int, help="API-Football league id to verify")
+    p_en.add_argument("--season", type=int, default=2024)
     args = parser.parse_args()
     {"fetch": cmd_fetch, "status": cmd_status, "map-clubs": cmd_map_clubs, "load": cmd_load,
-     "gap-fill": cmd_gap_fill}[args.command](args)
+     "gap-fill": cmd_gap_fill, "enable-league": cmd_enable_league}[args.command](args)
 
 
 if __name__ == "__main__":
