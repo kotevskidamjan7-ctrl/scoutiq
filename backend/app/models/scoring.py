@@ -2,7 +2,7 @@
 
 from datetime import datetime
 
-from sqlalchemy import JSON, DateTime, Float, ForeignKey, Integer, SmallInteger, String, Text, UniqueConstraint, func
+from sqlalchemy import JSON, Boolean, DateTime, Float, ForeignKey, Integer, SmallInteger, String, Text, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
@@ -30,6 +30,7 @@ class ScoutingScore(Base):
     model_id: Mapped[int] = mapped_column(ForeignKey("scoring_model.id"))
     league_id: Mapped[int] = mapped_column(ForeignKey("league.id"))
     season: Mapped[int] = mapped_column(SmallInteger)
+    role: Mapped[str] = mapped_column(String(2), index=True)  # GK, CB, FB, CM, AW, ST
     position_group: Mapped[str] = mapped_column(String(3))
     score_within_league: Mapped[float] = mapped_column(Float)  # 0-100
     score_adjusted: Mapped[float | None] = mapped_column(Float)  # 0-100, league-strength adjusted
@@ -37,3 +38,20 @@ class ScoutingScore(Base):
     reliability: Mapped[str] = mapped_column(String(10))  # high / medium / low
     breakdown: Mapped[dict | None] = mapped_column(JSON)  # per-metric percentiles, for explanations
     computed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class StatFieldCoverage(Base):
+    """Per league, season, role and field: is the field recorded? (coverage rule, methodology section 3)"""
+
+    __tablename__ = "stat_field_coverage"
+    __table_args__ = (UniqueConstraint("model_id", "league_id", "season", "role", "field"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    model_id: Mapped[int] = mapped_column(ForeignKey("scoring_model.id"))
+    league_id: Mapped[int] = mapped_column(ForeignKey("league.id"))
+    season: Mapped[int] = mapped_column(SmallInteger)
+    role: Mapped[str] = mapped_column(String(2))
+    field: Mapped[str] = mapped_column(String(40))
+    regulars: Mapped[int] = mapped_column(Integer)
+    coverage: Mapped[float] = mapped_column(Float)
+    recorded: Mapped[bool] = mapped_column(Boolean)

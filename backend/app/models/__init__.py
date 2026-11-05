@@ -2,7 +2,7 @@
 
 from app.models.league import Club, ClubSourceId, League, LeagueStrength
 from app.models.player import LinkCandidate, MarketValuation, Player, PlayerSeasonStats, PlayerSourceId
-from app.models.scoring import ScoringModel, ScoutingScore
+from app.models.scoring import ScoringModel, ScoutingScore, StatFieldCoverage
 from app.models.source import DataSource, ImportRun
 from app.models.user import AppUser, Scenario, ScenarioPlayer
 
@@ -23,4 +23,5 @@ __all__ = [
     "ScenarioPlayer",
     "ScoringModel",
     "ScoutingScore",
+    "StatFieldCoverage",
 ]
