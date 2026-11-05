@@ -55,3 +55,25 @@ class StatFieldCoverage(Base):
     regulars: Mapped[int] = mapped_column(Integer)
     coverage: Mapped[float] = mapped_column(Float)
     recorded: Mapped[bool] = mapped_column(Boolean)
+
+
+class LeagueAdjustment(Base):
+    """Result of the league-strength calibration for a model and season, including the decision."""
+
+    __tablename__ = "league_adjustment"
+    __table_args__ = (UniqueConstraint("model_id", "season"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    model_id: Mapped[int] = mapped_column(ForeignKey("scoring_model.id"))
+    season: Mapped[int] = mapped_column(SmallInteger)
+    beta: Mapped[float | None] = mapped_column(Float)  # probit units per 100 Elo
+    alpha: Mapped[float | None] = mapped_column(Float)
+    ci_low: Mapped[float | None] = mapped_column(Float)
+    ci_high: Mapped[float | None] = mapped_column(Float)
+    n_movers: Mapped[int] = mapped_column(Integer)
+    n_stayers: Mapped[int] = mapped_column(Integer)
+    accepted: Mapped[bool] = mapped_column(Boolean)
+    reason: Mapped[str] = mapped_column(Text)
+    e_ref: Mapped[float | None] = mapped_column(Float)
+    details: Mapped[dict | None] = mapped_column(JSON)
+    computed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

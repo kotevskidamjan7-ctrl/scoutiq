@@ -31,6 +31,7 @@ from app.scoring.engine import score_group, value_for_money
 
 STAT_COLUMNS = sorted({f for m in M.METRICS.values() for f in m.plus + m.minus + m.attempts_plus + m.attempts_minus})
 PROVISIONAL_BELOW = 0.90  # share of Transfermarkt regulars with API stats
+MIN_VFM_R2 = 0.10  # value for money is shown only where market value explains >= 10% of the score
 
 
 def get_model(session: Session) -> ScoringModel:
@@ -135,14 +136,22 @@ def run(session: Session, season: int) -> dict:
         return report
     all_scores = pd.concat(scored_frames, ignore_index=True)
     all_scores["vfm"] = pd.Series(dtype=float)
+    report["vfm_r2"] = {}
     for role, part in all_scores.groupby("role"):
-        all_scores.loc[part.index, "vfm"] = value_for_money(part)
+        vfm, r2 = value_for_money(part)
+        report["vfm_r2"][role] = r2
+        if r2 is not None and r2 >= MIN_VFM_R2:
+            all_scores.loc[part.index, "vfm"] = vfm
 
     now = datetime.now(timezone.utc)
     rows = []
     for r in all_scores.itertuples(index=False):
         breakdown = dict(r.breakdown)
         breakdown["position_check"] = M.position_check(r.role, r.position_reported)
+        r2 = report["vfm_r2"].get(r.role)
+        if r2 is not None and r2 < MIN_VFM_R2:
+            breakdown["value_for_money_note"] = (f"Market value explains only {r2:.0%} of the score for this role, "
+                                                 "so compare score and price directly.")
         if pd.notna(r.value_eur):
             breakdown["market_value"] = {"value_eur": int(r.value_eur), "valuation_date": str(r.valuation_date)}
         rows.append({
@@ -154,6 +163,8 @@ def run(session: Session, season: int) -> dict:
     for start in range(0, len(rows), 2000):
         session.execute(ScoutingScore.__table__.insert(), rows[start : start + 2000])
     report["scored"] = len(rows)
+    from app.scoring.league_adjust import apply  # re-apply a stored, accepted league calibration
+    report["adjusted"] = apply(session, model, season)
     report["position_mismatch"] = sum(1 for r in rows if r["breakdown"]["position_check"]["consistent"] is False)
     report["scores"] = all_scores
     return report
@@ -164,6 +175,14 @@ def print_report(report: dict, top: int, league_filter: str | None) -> None:
     print(f"\nScouting scores {report['model']}, season {report['season']}/{str(report['season'] + 1)[2:]}")
     print(f"  players scored: {report['scored']}   (no role mapped: {report['unmapped_role']}; "
           f"2024/25 API position differs from role: {report.get('position_mismatch', 0)})")
+    r2 = report.get("vfm_r2", {})
+    if r2:
+        shown = [f"{k} {v:.2f}" for k, v in r2.items() if v is not None and v >= MIN_VFM_R2]
+        hidden = [f"{k} {v:.2f}" for k, v in r2.items() if v is not None and v < MIN_VFM_R2]
+        print(f"  value for money shown (R^2 >= {MIN_VFM_R2}): {', '.join(shown) or '-'};"
+              f" hidden: {', '.join(hidden) or '-'}")
+    print(f"  league-adjusted scores: {report.get('adjusted', 0)}"
+          + ("" if report.get("adjusted") else " (no accepted calibration; run app.scoring.league_adjust)"))
     print("\n  API-Football coverage of Transfermarkt regulars:")
     for lid, share in report["af_coverage"].items():
         flag = "" if share >= PROVISIONAL_BELOW else "   <- provisional: fetch / gap fill not complete"

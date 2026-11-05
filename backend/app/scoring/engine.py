@@ -145,18 +145,18 @@ def score_group(df: pd.DataFrame, role: str) -> GroupResult:
 
 # ---------- value for money ----------
 
-def value_for_money(df: pd.DataFrame, min_points: int = 20) -> pd.Series:
+def value_for_money(df: pd.DataFrame, min_points: int = 20) -> tuple[pd.Series, float | None]:
     """Score minus the score expected at this market value for this role (within-league variant).
 
     df columns: score, value_eur, league_id, minutes. Fitted on regulars with a value:
         score ~ a + b*ln(value) + league dummies   (ordinary least squares)
-    Returns VfM per row (NaN if no value, or too few points to fit).
+    Returns (VfM per row, R^2 of the fit). VfM is NaN if no value or too few points to fit.
     """
     result = pd.Series(np.nan, index=df.index)
     has_value = df["value_eur"].notna() & (df["value_eur"] > 0)
     fit = df[has_value & (df["minutes"] >= M.REFERENCE_MINUTES)]
     if len(fit) < min_points:
-        return result
+        return result, None
     leagues = sorted(fit["league_id"].unique())
 
     def design(frame: pd.DataFrame) -> np.ndarray:
@@ -164,7 +164,9 @@ def value_for_money(df: pd.DataFrame, min_points: int = 20) -> pd.Series:
         cols += [(frame["league_id"] == lg).astype(float).to_numpy() for lg in leagues[1:]]
         return np.column_stack(cols)
 
-    coef, *_ = np.linalg.lstsq(design(fit), fit["score"].to_numpy(dtype=float), rcond=None)
+    y = fit["score"].to_numpy(dtype=float)
+    coef, *_ = np.linalg.lstsq(design(fit), y, rcond=None)
+    r2 = float(1 - (y - design(fit) @ coef).var() / y.var()) if y.var() > 0 else 0.0
     target = df[has_value & df["league_id"].isin(leagues)]
     result.loc[target.index] = np.round(target["score"].to_numpy(dtype=float) - design(target) @ coef, 1)
-    return result
+    return result, r2

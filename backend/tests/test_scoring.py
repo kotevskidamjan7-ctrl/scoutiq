@@ -143,7 +143,8 @@ def test_value_for_money_is_residual_against_price():
     values = np.geomspace(1e5, 5e7, 30)
     df = pd.DataFrame({"score": 10 + 5 * np.log(values), "value_eur": values, "league_id": 1, "minutes": 2000})
     df.loc[3, "score"] += 10   # this player outperforms his price by 10 points
-    vfm = value_for_money(df)
+    vfm, r2 = value_for_money(df)
+    assert r2 > 0.95
     # least squares lets the outlier pull the line up slightly, so his residual is a bit under 10
     assert 8.5 < vfm[3] <= 10
     assert vfm.drop(3).abs().max() < 1.5
@@ -152,7 +153,7 @@ def test_value_for_money_is_residual_against_price():
 def test_value_for_money_needs_a_value():
     df = pd.DataFrame({"score": np.arange(30.0), "value_eur": [np.nan] + list(np.geomspace(1e5, 1e7, 29)),
                        "league_id": 1, "minutes": 2000})
-    assert np.isnan(value_for_money(df)[0])
+    assert np.isnan(value_for_money(df)[0][0])
 
 
 # ---------- end to end against the test database ----------
