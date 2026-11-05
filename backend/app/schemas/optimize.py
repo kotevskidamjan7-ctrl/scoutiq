@@ -10,6 +10,9 @@ Role = Literal["GK", "CB", "FB", "CM", "AW", "ST"]
 
 
 class OptimizeRequest(BaseModel):
+    model_config = {"json_schema_extra": {"examples": [{"budget_eur": 15000000, "formation": "4-3-3"},
+                                                       {"budget_eur": 2000000, "needs": {"CM": 2, "ST": 1}}]}}
+
     budget_eur: int = Field(..., gt=0, le=2_000_000_000, description="Transfer budget in EUR")
     formation: str | None = Field(None, description=f"One of {sorted(FORMATIONS)}")
     squad_size: int | None = Field(None, ge=12, le=30, description="Complete squad instead of a starting XI")

@@ -1,13 +1,11 @@
-"""POST /api/v1/optimize/squad: Mode A squad optimization (FR-10, FR-12, FR-13, FR-14).
-
-Authentication (Scout role) is added with the auth step (FR-15); until then the endpoint is open
-on the local development server only.
-"""
+"""POST /api/v1/optimize/squad: Mode A squad optimization (FR-10, FR-12, FR-13, FR-14). Requires login."""
 
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
+from app.api.deps import get_current_user
 from app.db.session import get_db
+from app.models import AppUser
 from app.optimization.candidates import load_candidates
 from app.optimization.model import Team, age_on, formation_request, positions_request, squad_request
 from app.optimization.present import place
@@ -33,7 +31,13 @@ def _team_out(team: Team, formation: str | None, ref) -> TeamOut:
 
 
 @router.post("/squad", response_model=OptimizeResponse)
-def optimize_squad(body: OptimizeRequest, db: Session = Depends(get_db)) -> OptimizeResponse:
+def optimize_squad(body: OptimizeRequest, db: Session = Depends(get_db),
+                   user: AppUser = Depends(get_current_user)) -> OptimizeResponse:
+    return run_optimization(body, db)
+
+
+def run_optimization(body: OptimizeRequest, db: Session) -> OptimizeResponse:
+    """The whole Mode A run; shared by the endpoint and by saved scenarios."""
     candidates = load_candidates(db, 2024, body.score)
     common = dict(age_min=body.age_min, age_max=body.age_max, league_ids=tuple(body.league_ids),
                   nationalities=tuple(body.nationalities), exclude_nationalities=tuple(body.exclude_nationalities),

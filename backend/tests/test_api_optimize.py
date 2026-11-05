@@ -20,7 +20,11 @@ def client():
     _seed_centre_backs(session, n=12)  # synthetic centre-backs valued EUR 1m..12m
     score_run(session, 2024)
     app.dependency_overrides[get_db] = lambda: session
-    yield TestClient(app)
+    c = TestClient(app)
+    c.post("/api/v1/auth/register", json={"email": "scout@example.com", "password": "Scout-pass-2026"})
+    token = c.post("/api/v1/auth/login", data={"username": "scout@example.com", "password": "Scout-pass-2026"}).json()
+    c.headers["Authorization"] = f"Bearer {token['access_token']}"
+    yield c
     app.dependency_overrides.clear()
     session.close()
     transaction.rollback()
@@ -62,3 +66,15 @@ def test_recent_form_filter_is_on_by_default(client):
 ])
 def test_invalid_input_is_rejected_with_422(client, payload):
     assert client.post(URL, json=payload).status_code == 422
+
+
+def test_optimizer_requires_login(client):
+    del client.headers["Authorization"]
+    r = client.post(URL, json={"budget_eur": 10_000_000, "needs": {"CB": 2}})
+    assert r.status_code == 401 and r.json()["error"]["code"] == "UNAUTHORIZED"
+
+
+def test_validation_errors_use_the_api_error_format(client):
+    body = client.post(URL, json={"budget_eur": -5, "needs": {"CB": 1}}).json()
+    assert body["error"]["code"] == "VALIDATION_ERROR"
+    assert any(d["field"] == "budget_eur" for d in body["error"]["details"])

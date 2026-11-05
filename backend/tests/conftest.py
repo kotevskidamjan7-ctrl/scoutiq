@@ -17,6 +17,7 @@ if not TEST_URL:
     raise pytest.UsageError("TEST_DATABASE_URL is not set; refusing to run tests against the real database.")
 
 os.environ["DATABASE_URL"] = TEST_URL  # must happen before app.core.config is imported
+os.environ.setdefault("JWT_SECRET", "test-only-secret-never-used-outside-tests-0123456789")
 
 
 def _create_database_if_missing(url_str: str) -> None:
