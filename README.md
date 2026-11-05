@@ -22,3 +22,17 @@ docker compose up --build
 ## Data sources and attribution
 
 API-Football (api-football.com), Transfermarkt via dcaribou/transfermarkt-datasets (academic, non-commercial use), ClubElo (clubelo.com).
+
+## Frontend (Phase 6)
+
+The web interface lives in `frontend/` (React, TypeScript, Vite, Tailwind).
+
+```powershell
+docker compose up -d          # the backend must be running on http://localhost:8000
+cd frontend
+npm install                   # first time only
+npm run dev                   # open http://localhost:5173
+npm test                      # unit tests for money parsing and the builder form
+```
+
+The dev server forwards `/api` to the backend, so no CORS setup is needed.

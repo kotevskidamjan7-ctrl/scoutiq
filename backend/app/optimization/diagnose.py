@@ -17,7 +17,9 @@ def fmt_eur(amount: int | float | None) -> str:
         return "-"
     if amount >= 1_000_000:
         return f"€{amount / 1_000_000:.1f}m"
-    return f"€{amount / 1_000:.0f}k"
+    if amount >= 1_000:
+        return f"€{amount / 1_000:.0f}k"
+    return f"€{amount:.0f}"
 
 
 def _relaxations(req: Request, cheapest: int | None) -> list[tuple[str, Request]]:
