@@ -48,8 +48,9 @@ def test_season_dates_are_september_to_may():
 
 
 class _FakeResp:
-    def __init__(self, text):
+    def __init__(self, text, status=200):
         self.text = text
+        self.status_code = status
 
     def raise_for_status(self):
         pass
@@ -62,6 +63,32 @@ class _FakeSession:
     def get(self, url, timeout):
         self.calls += 1
         return _FakeResp(SAMPLE)
+
+
+def test_server_errors_are_retried_then_succeed(tmp_path):
+    answers = iter([_FakeResp("", 502), _FakeResp("", 503), _FakeResp(SAMPLE)])
+
+    class Flaky:
+        def get(self, url, timeout):
+            return next(answers)
+
+    waits = []
+    client = ClubEloClient(tmp_path, session=Flaky(), sleep=waits.append)
+    assert len(client.on(date(2024, 9, 1))) == 4
+    assert waits == [5, 15]
+
+
+def test_persistent_outage_raises_clear_error_and_caches_nothing(tmp_path):
+    from ingestion.clubelo import ClubEloUnavailable
+
+    class Down:
+        def get(self, url, timeout):
+            return _FakeResp("", 502)
+
+    client = ClubEloClient(tmp_path, session=Down(), sleep=lambda s: None)
+    with pytest.raises(ClubEloUnavailable, match="HTTP 502"):
+        client.on(date(2024, 9, 1))
+    assert not list(tmp_path.iterdir())  # nothing half-written to the cache
 
 
 def test_client_downloads_each_date_once(tmp_path):
