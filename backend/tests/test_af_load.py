@@ -188,6 +188,11 @@ def test_disagreeing_line_is_held_not_stored(db, tmp_path, page):
     assert any("Rashford" in h for h in report.held)
     targets = gap_fill_targets(db, [league], 2024)
     assert ("Marcus Rashford", PL, 1450, "909") in targets  # known API id -> one cheap request
+    unlinked = _tm_player(db, "Never Listed", date(1990, 1, 1), united, league, 2000)  # no API id
+    names = [t[0] for t in gap_fill_targets(db, [league], 2024)]
+    linked_only = [t[0] for t in gap_fill_targets(db, [league], 2024, only_linked=True)]
+    assert unlinked.full_name in names and unlinked.full_name not in linked_only
+    assert "Marcus Rashford" in linked_only
 
 
 def test_player_record_replaces_listing_and_sums_clubs(db, tmp_path, page):

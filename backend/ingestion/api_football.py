@@ -324,8 +324,14 @@ def search_token(full_name: str) -> str | None:
     return parts[0] if parts else None
 
 
-def gap_fill_targets(session: Session, leagues: list[League], season: int, min_minutes: int = GAP_MIN_MINUTES):
-    """Transfermarkt regulars with no stored API-Football line for that league and season, most minutes first."""
+def gap_fill_targets(
+    session: Session, leagues: list[League], season: int, min_minutes: int = GAP_MIN_MINUTES, only_linked: bool = False
+):
+    """Transfermarkt regulars with no stored API-Football line for that league and season, most minutes first.
+
+    only_linked: keep only players whose API-Football id is already known (one cheap request each,
+    and safe to run while the main fetch is still in progress).
+    """
     from sqlalchemy import func
 
     from app.models import Player, PlayerSourceId
@@ -359,15 +365,16 @@ def gap_fill_targets(session: Session, leagues: list[League], season: int, min_m
         .order_by(tm_minutes.c.minutes.desc())
     ).all()
     league_af = {lg.id: lg.apifootball_id for lg in leagues}
-    return [(r.full_name, league_af[r.league_id], r.minutes, r.af_id) for r in rows]
+    return [(r.full_name, league_af[r.league_id], r.minutes, r.af_id) for r in rows if r.af_id or not only_linked]
 
 
 def cmd_gap_fill(args) -> None:
     settings = get_settings()
     client = ApiFootballClient(settings.api_football_key, cache_dir(), max_requests=args.max_requests)
     with SessionLocal() as session:
-        targets = gap_fill_targets(session, enabled_leagues(session), args.season, args.min_minutes)
-    print(f"Regulars (>= {args.min_minutes} league minutes) without a reconciled API-Football line: {len(targets)}")
+        targets = gap_fill_targets(session, enabled_leagues(session), args.season, args.min_minutes, args.only_linked)
+    scope = " (known API id only)" if args.only_linked else ""
+    print(f"Regulars (>= {args.min_minutes} league minutes) without a reconciled API-Football line{scope}: {len(targets)}")
     by_id = by_search = already = skipped = 0
     try:
         for name, league_af_id, minutes, af_id in targets:
@@ -412,6 +419,8 @@ def main() -> None:
     p_gap.add_argument("--season", type=int, default=2024)
     p_gap.add_argument("--max-requests", type=int, default=80)
     p_gap.add_argument("--min-minutes", type=int, default=GAP_MIN_MINUTES)
+    p_gap.add_argument("--only-linked", action="store_true",
+                       help="only players whose API-Football id is known (safe while fetch is unfinished)")
     args = parser.parse_args()
     {"fetch": cmd_fetch, "status": cmd_status, "map-clubs": cmd_map_clubs, "load": cmd_load,
      "gap-fill": cmd_gap_fill}[args.command](args)
