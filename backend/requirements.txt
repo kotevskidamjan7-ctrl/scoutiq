@@ -11,3 +11,4 @@ pandas>=2.2
 rapidfuzz>=3.9
 requests>=2.32
 ortools>=9.10
+httpx>=0.27

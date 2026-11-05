@@ -17,7 +17,8 @@ from app.models import League
 from app.optimization.baselines import best_affordable_per_position, greedy_value, random_feasible
 from app.optimization.candidates import load_candidates
 from app.optimization.diagnose import fmt_eur
-from app.optimization.model import FORMATIONS, ROLES, SLOTS, Team, age_on, formation_request, positions_request, squad_request
+from app.optimization.model import FORMATIONS, ROLES, Team, age_on, formation_request, positions_request, squad_request
+from app.optimization.present import place
 from app.optimization.solver import solve
 
 
@@ -36,21 +37,6 @@ def parse_needs(text: str) -> dict[str, int]:
             raise SystemExit(f"Unknown role '{role}'. Use: {', '.join(ROLES)}")
         needs[role] = int(n)
     return needs
-
-
-def place(team: Team, formation: str | None) -> list[tuple[str, object]]:
-    """Display order: pitch slots for a formation (left-footed full-back on the left), else by role."""
-    if not formation:
-        return [(p.role, p) for r in ROLES for p in sorted(team.players, key=lambda p: -p.score) if p.role == r]
-    left = {p.player_id for p in team.players if p.role == "FB" and (p.foot or "").lower() == "left"}
-    pools = {r: sorted([p for p in team.players if p.role == r],
-                       key=lambda p: (p.player_id not in left, -p.score)) for r in ROLES}
-    placed, extra = [], []
-    for slot, role in SLOTS[formation]:
-        placed.append((slot, pools[role].pop(0)))
-    for r in ROLES:
-        extra += [("SUB", p) for p in pools[r]]
-    return placed + extra
 
 
 def print_team(team: Team, formation, ref_date, title: str) -> None:
