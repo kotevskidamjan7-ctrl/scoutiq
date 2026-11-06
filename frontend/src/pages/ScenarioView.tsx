@@ -29,7 +29,7 @@ export default function ScenarioView() {
             {s.name !== describe(s.request) && `${describe(s.request)}. `}Saved {new Date(s.created_at).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" })}.
           </p>
         </div>
-        <button type="button" className="btn-primary" onClick={() => navigate("/", { state: { request: s.request } })}>
+        <button type="button" className="btn-primary" onClick={() => navigate("/builder", { state: { request: s.request } })}>
           Open in builder
         </button>
       </div>

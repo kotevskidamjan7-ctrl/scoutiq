@@ -33,7 +33,7 @@ export default function Scenarios() {
         <div className="mt-6 rounded-lg border border-dashed border-rule p-6">
           <p className="font-semibold">No saved scenarios yet.</p>
           <p className="mt-1 text-ink-soft">Find a team in the squad builder, then save it to compare it here later.</p>
-          <Link to="/" className="btn-primary mt-4">Open the squad builder</Link>
+          <Link to="/builder" className="btn-primary mt-4">Open the squad builder</Link>
         </div>
       )}
       {rows && rows.length > 0 && (

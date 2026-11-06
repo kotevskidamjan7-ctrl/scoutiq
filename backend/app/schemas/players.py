@@ -1,6 +1,6 @@
 """Responses for the explorer, the player profile and the comparison."""
 
-from datetime import date
+from datetime import date, datetime
 from typing import Literal
 
 from pydantic import BaseModel
@@ -157,3 +157,55 @@ class ProfileOut(BaseModel):
 class CompareOut(BaseModel):
     players: list[ProfileOut]
     same_role: bool
+
+
+class DashboardTotals(BaseModel):
+    players_scored: int
+    regulars_scored: int
+    still_playing: int
+    leagues_complete: int
+    leagues_enabled: int
+    latest_valuation_date: date | None
+
+
+class DashboardLeague(BaseModel):
+    id: int
+    name: str
+    country: str
+    status: Literal["complete", "provisional", "no_data"]
+    coverage: float
+    scored: int
+    regulars: int
+    median_value_eur: int | None
+    roles: dict[str, int]
+
+
+class DashboardImport(BaseModel):
+    source: str
+    kind: str
+    status: str
+    finished_at: datetime | None
+    rows_written: int
+    requests_used: int
+
+
+class AdjustmentStatus(BaseModel):
+    accepted: bool
+    reason: str
+
+
+class ModelStatus(BaseModel):
+    version: str | None
+    league_adjustment: AdjustmentStatus | None
+
+
+class DashboardOut(BaseModel):
+    season: int
+    recent_season: int
+    totals: DashboardTotals
+    leagues: list[DashboardLeague]
+    imports: list[DashboardImport]
+    model: ModelStatus
+    value_picks: dict[str, list[PlayerRowOut]]
+    value_for_money_shown: dict[str, bool]
+    budget_picks: dict[str, dict[str, list[PlayerRowOut]]]  # price cap in EUR -> role -> players

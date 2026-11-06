@@ -7,8 +7,8 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
 from app.db.session import get_db
-from app.players import service
-from app.schemas.players import CompareOut, LeagueOut, PlayerPage, ProfileOut
+from app.players import dashboard, service
+from app.schemas.players import CompareOut, DashboardOut, LeagueOut, PlayerPage, ProfileOut
 
 router = APIRouter(tags=["players"], dependencies=[Depends(get_current_user)])
 
@@ -68,3 +68,9 @@ def get_profile(player_id: int, db: Session = Depends(get_db)) -> dict:
     if p is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Player not found")
     return p
+
+
+@router.get("/stats/dashboard", response_model=DashboardOut)
+def get_dashboard(db: Session = Depends(get_db)) -> dict:
+    """Coverage per league, data freshness, recent imports, model status and value-for-money picks."""
+    return dashboard.dashboard(db)

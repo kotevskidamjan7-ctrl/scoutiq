@@ -104,6 +104,22 @@ export interface Profile {
   recent_form: { season: number; source: string; rows: RecentRow[];
     totals: { appearances: number; minutes: number; goals: number; assists: number; cards_yellow: number; cards_red: number } | null };
 }
+export interface DashboardLeague {
+  id: number; name: string; country: string; status: "complete" | "provisional" | "no_data";
+  coverage: number; scored: number; regulars: number; median_value_eur: number | null; roles: Record<string, number>;
+}
+export interface Dashboard {
+  season: number; recent_season: number;
+  totals: { players_scored: number; regulars_scored: number; still_playing: number; leagues_complete: number;
+    leagues_enabled: number; latest_valuation_date: string | null };
+  leagues: DashboardLeague[];
+  imports: { source: string; kind: string; status: string; finished_at: string | null; rows_written: number; requests_used: number }[];
+  model: { version: string | null; league_adjustment: { accepted: boolean; reason: string } | null };
+  value_picks: Record<Role, PlayerRow[]>;
+  value_for_money_shown: Record<Role, boolean>;
+  budget_picks: Record<string, Record<Role, PlayerRow[]>>; // price cap in EUR -> role -> players
+}
+
 export interface Comparison { players: Profile[]; same_role: boolean; }
 
 function query(params: Record<string, unknown>): string {
@@ -171,5 +187,6 @@ export const api = {
   leagues: () => request<League[]>("/leagues"),
   players: (q: PlayerQuery) => request<PlayerPage>(`/players${query({ ...q })}`),
   player: (id: number) => request<Profile>(`/players/${id}`),
+  dashboard: () => request<Dashboard>("/stats/dashboard"),
   compare: (ids: number[]) => request<Comparison>(`/players/compare${query({ ids })}`),
 };

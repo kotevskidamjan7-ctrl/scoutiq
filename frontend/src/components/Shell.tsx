@@ -17,7 +17,8 @@ export default function Shell() {
       <header className="flex flex-wrap items-center gap-x-4 gap-y-2 bg-board px-4 py-3 lg:sticky lg:top-0 lg:h-screen lg:flex-col lg:flex-nowrap lg:items-stretch lg:gap-6 lg:px-3 lg:py-6">
         <p className="condensed px-3 text-3xl font-extrabold leading-none text-chalk">ScoutIQ</p>
         <nav aria-label="Main" className="flex flex-wrap gap-1 lg:flex-col">
-          <NavLink to="/" end className={link}>Squad builder</NavLink>
+          <NavLink to="/" end className={link}>Dashboard</NavLink>
+          <NavLink to="/builder" className={link}>Squad builder</NavLink>
           <NavLink to="/players" className={link}>Players</NavLink>
           <NavLink to="/compare" className={link}>
             Compare{picks.length > 0 && <span className="num ml-2 font-normal">({picks.length})</span>}

@@ -132,3 +132,10 @@ def test_save_list_reopen_delete_and_privacy(client, db):
 
 def test_scenarios_need_login(client):
     assert client.get("/api/v1/scenarios").status_code == 401
+
+
+def test_set_password_command_uses_registration_rules():
+    from app.users_cli import check_password
+    assert check_password("a@example.com", "Scout-pass-2026") is None
+    assert check_password("a@example.com", "short") is not None
+    assert check_password("a@example.com", "1234567890123") is not None  # digits only
