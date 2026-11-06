@@ -46,6 +46,7 @@ from app.models import (
 )
 from ingestion.api_football_client import ApiFootballClient
 from ingestion.normalize import normalize_name
+from ingestion.batching import chunks
 
 NAME_THRESHOLD = 85          # same birth date, name alone
 LEAGUE_NAME_THRESHOLD = 60   # same birth date AND the player has Transfermarkt minutes in this league-season
@@ -408,8 +409,8 @@ def load_cached(session: Session, client: ApiFootballClient, leagues: list[Leagu
         report.per_league[league.name] = (stored + 1, regulars + (api_minutes >= 900))
 
     session.flush()
-    for start in range(0, len(rows), 2000):
-        session.execute(pg_insert(PlayerSeasonStats).values(rows[start : start + 2000]))
+    for chunk in chunks(rows):  # sized to stay under PostgreSQL's 65,535-parameter limit
+        session.execute(pg_insert(PlayerSeasonStats).values(chunk))
     report.stored = len(rows)
 
     run.status = "success"

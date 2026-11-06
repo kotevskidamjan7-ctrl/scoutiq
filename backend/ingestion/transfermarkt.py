@@ -40,6 +40,7 @@ from app.models import (
     PlayerSourceId,
 )
 from ingestion.normalize import normalize_name, tm_position_group
+from ingestion.batching import chunks
 
 # Columns this loader relies on, per Transfermarkt table. Checked before anything is written.
 REQUIRED_COLUMNS = {
@@ -276,10 +277,10 @@ def load(session: Session, con: duckdb.DuckDBPyConnection, seasons: list[int]) -
         for r in vals_df.itertuples(index=False)
         if _none(r.valuation_date) is not None and _none(r.value_eur) is not None and r.value_eur >= 0
     ]
-    for start in range(0, len(rows), BATCH):
+    for chunk in chunks(rows):
         inserted = session.scalars(
             pg_insert(MarketValuation)
-            .values(rows[start : start + BATCH])
+            .values(chunk)
             .on_conflict_do_nothing(index_elements=["player_id", "valuation_date", "valuation_type", "source_id"])
             .returning(MarketValuation.id)
         ).all()
@@ -320,8 +321,8 @@ def load(session: Session, con: duckdb.DuckDBPyConnection, seasons: list[int]) -
         seasons_for_league = report.per_league.setdefault(r.competition_id, {})
         if r.minutes > 0:
             seasons_for_league[int(r.season)] = seasons_for_league.get(int(r.season), 0) + 1
-    for start in range(0, len(stat_rows), BATCH):
-        stmt = pg_insert(PlayerSeasonStats).values(stat_rows[start : start + BATCH])
+    for chunk in chunks(stat_rows):
+        stmt = pg_insert(PlayerSeasonStats).values(chunk)
         stmt = stmt.on_conflict_do_update(
             index_elements=["player_id", "club_id", "league_id", "season", "source_id"],
             set_={c: stmt.excluded[c] for c in
