@@ -58,7 +58,10 @@ class Request:
     squad_size: int
     formation: str | None = None
     mode: str = "build"                     # "build" (Mode A) or "improve" (Mode B)
-    kept_ids: tuple[int, ...] = ()          # Mode B: players kept from the current squad (price 0)
+    kept_ids: tuple[int, ...] = ()          # Mode B: locked players, must be in the team (price 0)
+    owned_ids: tuple[int, ...] = ()         # Mode B: the club's own players, free and optional
+    max_signings: int | None = None         # Mode B: at most this many players bought
+    signing_roles: tuple[str, ...] = ()     # Mode B: buy only for these roles (empty = any)
     exclude_ids: tuple[int, ...] = ()       # Mode B: the club's own players are not bought again
     age_min: int | None = None
     age_max: int | None = None
@@ -109,10 +112,12 @@ def age_on(birth: date | None, ref: date) -> int | None:
 def apply_filters(candidates: list[Candidate], req: Request) -> list[Candidate]:
     """Candidates that may be BOUGHT under the request (kept players are handled separately)."""
     leagues, nats, excl = set(req.league_ids), set(req.nationalities), set(req.exclude_nationalities)
-    skip = set(req.exclude_ids) | set(req.kept_ids)
+    skip = set(req.exclude_ids) | set(req.kept_ids) | set(req.owned_ids)
     out = []
     for c in candidates:
         if c.player_id in skip or c.price is None or c.price <= 0:
+            continue
+        if req.signing_roles and c.role not in req.signing_roles:
             continue
         if c.minutes < req.min_minutes:
             continue

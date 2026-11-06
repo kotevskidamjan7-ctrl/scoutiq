@@ -7,6 +7,8 @@ import { eur, num, ROLE_NAMES, signed } from "../lib/format";
 const ROLES: Role[] = ["GK", "CB", "FB", "CM", "AW", "ST"];
 const CAPS = [1_000_000, 3_000_000, 10_000_000];
 const CAP_KEY = "scoutiq.dashboardCap";
+const AGE_KEY = "scoutiq.dashboardMaxAge";
+const AGES: (number | null)[] = [null, 27, 23];
 const THRESHOLD = 0.9; // a league's scores are final once 90% of its regulars have full statistics
 
 const STATUS: Record<DashboardLeague["status"], { label: string; note: string; mark: string }> = {
@@ -64,9 +66,16 @@ export default function Dashboard() {
   });
   const setCap = (v: number) => { setCapState(v); try { localStorage.setItem(CAP_KEY, String(v)); } catch { /* not stored */ } };
 
+  const [maxAge, setMaxAgeState] = useState<number | null>(() => {
+    try { const v = localStorage.getItem(AGE_KEY); return v && AGES.includes(Number(v)) ? Number(v) : null; } catch { return null; }
+  });
+  const setMaxAge = (v: number | null) => {
+    setMaxAgeState(v);
+    try { if (v == null) localStorage.removeItem(AGE_KEY); else localStorage.setItem(AGE_KEY, String(v)); } catch { /* not stored */ }
+  };
   useEffect(() => {
-    api.dashboard().then(setD).catch((e) => setError(e instanceof ApiError ? e.message : "Could not load the dashboard."));
-  }, []);
+    api.dashboard(maxAge).then(setD).catch((e) => setError(e instanceof ApiError ? e.message : "Could not load the dashboard."));
+  }, [maxAge]);
 
   if (error) return <p role="alert" className="rounded-md bg-signal-soft px-3 py-2 text-signal">{error}</p>;
   if (!d) return <p className="text-ink-soft">Loading…</p>;
@@ -172,6 +181,21 @@ export default function Dashboard() {
               it shows the highest scores under the price limit.
             </p>
           </div>
+          <div className="flex flex-wrap gap-4">
+          <fieldset>
+            <legend className="label">Age</legend>
+            <div className="flex gap-1 rounded-md bg-surface-sunk p-1">
+              {AGES.map((a) => (
+                <label key={a ?? "any"} className={[
+                  "num cursor-pointer rounded px-3 py-1.5 text-sm font-semibold has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-marker",
+                  maxAge === a ? "bg-surface-raised shadow-sm" : "text-ink-soft",
+                ].join(" ")}>
+                  <input type="radio" name="age" className="sr-only" checked={maxAge === a} onChange={() => setMaxAge(a)} />
+                  {a == null ? "Any" : `${a} or younger`}
+                </label>
+              ))}
+            </div>
+          </fieldset>
           <fieldset>
             <legend className="label">Price limit for score lists</legend>
             <div className="flex gap-1 rounded-md bg-surface-sunk p-1">
@@ -186,6 +210,7 @@ export default function Dashboard() {
               ))}
             </div>
           </fieldset>
+          </div>
         </div>
         <div className="mt-5 grid gap-x-8 gap-y-6 sm:grid-cols-2 lg:grid-cols-3">
           {ROLES.map((role) => {

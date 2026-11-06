@@ -5,7 +5,10 @@
     s.t.      sum c_i x_i <= B                     (budget, signings only)
               L_r <= sum_{i in P_r} x_i <= U_r      (positions)
               sum x_i = N                           (squad size)
-              x_i = 1 for kept players              (Mode B)
+              x_i = 1 for kept (locked) players     (Mode B)
+              sum_{i not owned} x_i <= S            (Mode B: at most S signings)
+Owned players (Mode B) cost nothing and are optional: they start only when no affordable
+signing is better.
               sum_{i in club k} x_i <= K            (optional club limit)
               x_i in {0, 1}
 
@@ -34,13 +37,15 @@ def _price_units(c: Candidate, kept: set[int]) -> int:
 
 def solve_once(pool: list[Candidate], kept: list[Candidate], req: Request,
                cuts: list[set[int]] | None = None, use_budget: bool = True,
-               objective: str = "score") -> tuple[str, Team | None]:
+               objective: str = "score", owned: list[Candidate] | None = None) -> tuple[str, Team | None]:
     """One two-stage solve. objective='score' (normal) or 'cost' (cheapest feasible team, for diagnosis)."""
-    players = list(kept) + [c for c in pool if c.player_id not in {k.player_id for k in kept}]
     kept_ids = {k.player_id for k in kept}
+    owned = [o for o in (owned or []) if o.player_id not in kept_ids]
+    free_ids = kept_ids | {o.player_id for o in owned}
+    players = list(kept) + owned + [c for c in pool if c.player_id not in free_ids]
     model = cp_model.CpModel()
     x = {c.player_id: model.new_bool_var(f"x_{c.player_id}") for c in players}
-    price = {c.player_id: _price_units(c, kept_ids) for c in players}
+    price = {c.player_id: _price_units(c, free_ids) for c in players}
     score = {c.player_id: _score10(c) for c in players}
 
     if use_budget:
@@ -55,6 +60,8 @@ def solve_once(pool: list[Candidate], kept: list[Candidate], req: Request,
     model.add(sum(x.values()) == req.squad_size)                                          # (3)
     for k in kept_ids:                                                                    # (4)
         model.add(x[k] == 1)
+    if req.max_signings is not None:                                                      # (4b)
+        model.add(sum(x[i] for i in x if i not in free_ids) <= req.max_signings)
     if req.max_per_club is not None:                                                      # (5)
         by_club = defaultdict(list)
         for c in players:
@@ -63,7 +70,7 @@ def solve_once(pool: list[Candidate], kept: list[Candidate], req: Request,
         for vars_ in by_club.values():
             model.add(sum(vars_) <= req.max_per_club)
     for cut in cuts or []:                                                                # no-good cuts
-        free = [i for i in cut if i not in kept_ids and i in x]
+        free = [i for i in cut if i not in kept_ids and i in x]  # owned players may differ between teams
         if free:
             model.add(sum(x[i] for i in free) <= len(free) - 1)
 
@@ -93,11 +100,11 @@ def solve_once(pool: list[Candidate], kept: list[Candidate], req: Request,
     if status not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
         return "unknown", None  # time limit reached without any solution
     chosen = [c for c in players if solver.value(x[c.player_id])]
-    return ("optimal" if status == cp_model.OPTIMAL else "feasible"), Team(chosen, frozenset(kept_ids))
+    return ("optimal" if status == cp_model.OPTIMAL else "feasible"), Team(chosen, frozenset(free_ids))
 
 
 def solve(candidates: list[Candidate], req: Request, kept: list[Candidate] | None = None,
-          diagnose_on_failure: bool = True) -> Solution:
+          diagnose_on_failure: bool = True, owned: list[Candidate] | None = None) -> Solution:
     """Full run: filters -> best team -> alternatives -> independent verification -> diagnosis if infeasible."""
     from app.optimization.verify import verify
 
@@ -105,27 +112,32 @@ def solve(candidates: list[Candidate], req: Request, kept: list[Candidate] | Non
     start = time.perf_counter()
     pool = apply_filters(candidates, req)
     sol = Solution(status="infeasible", budget=req.budget, candidates_considered=len(pool))
-    status, team = solve_once(pool, kept, req)
+    status, team = solve_once(pool, kept, req, owned=owned)
     if team is not None:
         sol.status, sol.team = status, team
-        cuts = [team.ids()]
+        # Mode A: an alternative differs in at least one player. Mode B: it must differ in the SIGNINGS;
+        # starting another own player with the same purchases is not an alternative for a club.
+        key = (lambda t: {p.player_id for p in t.signings}) if owned else (lambda t: t.ids())
+        cuts = [key(team)]
         for _ in range(req.alternatives):
-            st, alt = solve_once(pool, kept, req, cuts=cuts)
+            if not cuts[-1]:
+                break  # the best plan buys nobody: there is no other set of signings to exclude
+            st, alt = solve_once(pool, kept, req, cuts=cuts, owned=owned)
             if alt is None:
                 break
             sol.alternatives.append(alt)
-            cuts.append(alt.ids())
+            cuts.append(key(alt))
     else:
         sol.status = status
     sol.solve_time_ms = round((time.perf_counter() - start) * 1000, 1)
 
     if sol.team is not None:
-        sol.violations = verify(sol.team, req, kept)
+        sol.violations = verify(sol.team, req, kept, owned)
         for alt in sol.alternatives:
-            sol.violations += [f"alternative: {v}" for v in verify(alt, req, kept)]
+            sol.violations += [f"alternative: {v}" for v in verify(alt, req, kept, owned)]
         if sol.violations:
             sol.status, sol.team, sol.alternatives = "error", None, []
     elif diagnose_on_failure:
         from app.optimization.diagnose import diagnose
-        sol.diagnosis = diagnose(candidates, req, kept)
+        sol.diagnosis = diagnose(candidates, req, kept, owned)
     return sol

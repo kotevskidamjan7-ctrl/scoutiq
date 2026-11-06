@@ -71,6 +71,7 @@ def get_profile(player_id: int, db: Session = Depends(get_db)) -> dict:
 
 
 @router.get("/stats/dashboard", response_model=DashboardOut)
-def get_dashboard(db: Session = Depends(get_db)) -> dict:
+def get_dashboard(max_age: int | None = Query(None, ge=16, le=45, description="Only players this age or younger in the picks"),
+                  db: Session = Depends(get_db)) -> dict:
     """Coverage per league, data freshness, recent imports, model status and value-for-money picks."""
-    return dashboard.dashboard(db)
+    return dashboard.dashboard(db, max_age)

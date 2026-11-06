@@ -7,6 +7,7 @@ interface Props {
   team: TeamOut | null;
   formation?: string | null;
   bestIds?: Set<number>;        // when showing an alternative: players not in the best team get a marker ring
+  ownIds?: Set<number>;         // club improvement: the club's own players show "Own player" instead of a price
   selectedId?: number | null;
   onSelect?: (p: PlayerOut) => void;
   emptyText?: string;
@@ -36,7 +37,7 @@ export function PitchLines() {
   );
 }
 
-export default function TacticsBoard({ team, formation, bestIds, selectedId, onSelect, emptyText }: Props) {
+export default function TacticsBoard({ team, formation, bestIds, ownIds, selectedId, onSelect, emptyText }: Props) {
   const xy = team ? positions(team.players, formation) : new Map();
   return (
     <div className="relative mx-auto aspect-[2/3] w-full max-w-[520px] overflow-hidden rounded-lg bg-board">
@@ -56,7 +57,7 @@ export default function TacticsBoard({ team, formation, bestIds, selectedId, onS
             type="button"
             onClick={() => onSelect?.(p)}
             aria-pressed={selected}
-            aria-label={`${p.slot}: ${p.name}, score ${p.score.toFixed(1)}, value ${eur(p.price_eur)}`}
+            aria-label={`${p.slot}: ${p.name}, score ${p.score.toFixed(1)}, ${ownIds?.has(p.player_id) ? "own player" : `value ${eur(p.price_eur)}`}`}
             className="group absolute flex w-[22%] -translate-x-1/2 -translate-y-1/2 flex-col items-center"
             style={{ left: `${x}%`, top: `${y}%` }}
           >
@@ -72,7 +73,9 @@ export default function TacticsBoard({ team, formation, bestIds, selectedId, onS
             <span className="narrow mt-1 max-w-full truncate text-[clamp(0.7rem,2.6vw,0.85rem)] font-semibold text-chalk">
               {surname(p.name)}
             </span>
-            <span className="num text-[clamp(0.62rem,2.2vw,0.72rem)] text-chalk-dim">{eur(p.price_eur)}</span>
+            <span className="num text-[clamp(0.62rem,2.2vw,0.72rem)] text-chalk-dim">
+              {ownIds?.has(p.player_id) ? "Own player" : eur(p.price_eur)}
+            </span>
           </button>
         );
       })}

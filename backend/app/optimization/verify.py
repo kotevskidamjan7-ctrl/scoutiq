@@ -18,10 +18,12 @@ def _age(birth, ref) -> int | None:
     return years
 
 
-def verify(team: Team, req: Request, kept: list[Candidate] | None = None) -> list[str]:
+def verify(team: Team, req: Request, kept: list[Candidate] | None = None,
+           owned: list[Candidate] | None = None) -> list[str]:
     problems: list[str] = []
     players = team.players
-    kept_ids = {k.player_id for k in (kept or [])}
+    locked_ids = {k.player_id for k in (kept or [])}
+    kept_ids = locked_ids | {o.player_id for o in (owned or [])}  # already at the club: free, no filters
 
     ids = [p.player_id for p in players]
     if len(ids) != len(set(ids)):
@@ -39,7 +41,12 @@ def verify(team: Team, req: Request, kept: list[Candidate] | None = None) -> lis
         if not lo <= n <= hi:
             problems.append(f"{role}: {n} players, allowed {lo}-{hi}")
 
-    missing_kept = kept_ids - set(ids)
+    if req.max_signings is not None:
+        bought = sum(1 for p in players if p.player_id not in kept_ids)
+        if bought > req.max_signings:
+            problems.append(f"{bought} signings, limit {req.max_signings}")
+
+    missing_kept = locked_ids - set(ids)
     if missing_kept:
         problems.append(f"kept players missing: {sorted(missing_kept)}")
 
@@ -66,6 +73,8 @@ def verify(team: Team, req: Request, kept: list[Candidate] | None = None) -> lis
             problems.append(f"{who}: nationality {p.nationality} not selected")
         if req.exclude_nationalities and p.nationality in req.exclude_nationalities:
             problems.append(f"{who}: nationality {p.nationality} excluded")
+        if req.signing_roles and p.role not in req.signing_roles:
+            problems.append(f"{who}: bought as {p.role}, only {', '.join(req.signing_roles)} allowed")
         if req.max_price is not None and p.price > req.max_price:
             problems.append(f"{who}: price {p.price} > max {req.max_price}")
         if req.age_min is not None or req.age_max is not None:

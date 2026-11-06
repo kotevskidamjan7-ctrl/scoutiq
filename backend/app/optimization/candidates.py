@@ -10,11 +10,14 @@ from app.optimization.model import Candidate
 from app.scoring import model_v1 as M
 
 
-def load_candidates(session: Session, season: int = 2024, score: str = "within") -> list[Candidate]:
+def load_candidates(session: Session, season: int = 2024, score: str = "within",
+                    player_ids: set[int] | None = None, require_value: bool = True) -> list[Candidate]:
     """One candidate per player (the league where he played most if he appears in two).
 
     score: "within" = within-league score; "adjusted" = league-adjusted score where available,
     otherwise the player is left out (no unsupported cross-league comparison).
+    player_ids / require_value=False: a club's own players (Mode B). They are not bought, so a
+    missing market value does not exclude them; their price is then 0.
     """
     model = session.scalar(select(ScoringModel).where(ScoringModel.version == M.VERSION))
     if model is None:
@@ -36,19 +39,20 @@ def load_candidates(session: Session, season: int = 2024, score: str = "within")
               & (PlayerSeasonStats.league_id == ScoutingScore.league_id)
               & (PlayerSeasonStats.season == ScoutingScore.season) & (PlayerSeasonStats.source_id == af.id))
         .outerjoin(Club, Club.id == PlayerSeasonStats.club_id)
-        .where(ScoutingScore.model_id == model.id, ScoutingScore.season == season)
+        .where(ScoutingScore.model_id == model.id, ScoutingScore.season == season,
+               *([ScoutingScore.player_id.in_(player_ids)] if player_ids is not None else []))
     ).all()
 
     best: dict[int, Candidate] = {}
     for sc, p, league_name, club_id, minutes, club_name in rows:
         value = (sc.breakdown or {}).get("market_value") or {}
-        if not value.get("value_eur"):
+        if require_value and not value.get("value_eur"):
             continue
         s = sc.score_adjusted if score == "adjusted" else sc.score_within_league
         if s is None:
             continue
         cand = Candidate(
-            player_id=p.id, name=p.full_name, role=sc.role, score=float(s), price=int(value["value_eur"]),
+            player_id=p.id, name=p.full_name, role=sc.role, score=float(s), price=int(value.get("value_eur") or 0),
             league_id=sc.league_id, league=league_name, club_id=club_id, club=club_name or "",
             nationality=p.nationality, birth_date=p.birth_date, foot=p.foot, minutes=int(minutes or 0),
             minutes_next=int(next_minutes.get(p.id) or 0),

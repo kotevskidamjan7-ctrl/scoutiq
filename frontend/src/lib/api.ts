@@ -49,7 +49,7 @@ export interface OptimizeResponse {
     reason: string;
     cheapest_cost_eur: number | null;
     budget_shortfall_eur: number | null;
-    suggestions: { change: string; total_score: number; cost_eur: number }[];
+    suggestions: { change: string; total_score: number; cost_eur: number; unlock_ids?: number[]; add_roles?: Role[] }[];
   } | null;
   notes: string[];
 }
@@ -109,7 +109,7 @@ export interface DashboardLeague {
   coverage: number; scored: number; regulars: number; median_value_eur: number | null; roles: Record<string, number>;
 }
 export interface Dashboard {
-  season: number; recent_season: number;
+  season: number; recent_season: number; max_age: number | null;
   totals: { players_scored: number; regulars_scored: number; still_playing: number; leagues_complete: number;
     leagues_enabled: number; latest_valuation_date: string | null };
   leagues: DashboardLeague[];
@@ -118,6 +118,28 @@ export interface Dashboard {
   value_picks: Record<Role, PlayerRow[]>;
   value_for_money_shown: Record<Role, boolean>;
   budget_picks: Record<string, Record<Role, PlayerRow[]>>; // price cap in EUR -> role -> players
+}
+
+export interface Club { id: number; name: string; league: string; }
+export interface SquadPlayer {
+  player_id: number; name: string; age: number | null; position: string | null; role: Role | null;
+  score: number | null; reliability: string | null; price_eur: number | null; minutes_2025_26: number;
+}
+export interface Squad { club: Club; players: SquadPlayer[]; }
+
+export interface ImproveRequest {
+  formation: string; budget_eur: number; owned_player_ids: number[]; locked_player_ids?: number[]; left_player_ids?: number[];
+  max_signings?: number; signing_roles?: Role[]; age_min?: number | null; age_max?: number | null; max_price_eur?: number | null;
+  min_minutes?: number; min_minutes_next?: number; alternatives?: number;
+}
+export interface ImprovePlayer extends PlayerOut { signing: boolean; }
+export interface ImproveTeam { total_score: number; cost_eur: number; players: ImprovePlayer[]; }
+export interface ImproveResponse {
+  status: OptimizeResponse["status"]; budget_eur: number; remaining_budget_eur: number | null;
+  solve_time_ms: number; eligible_players: number;
+  current: ImproveTeam | null; current_missing: Partial<Record<Role, number>>;
+  team: ImproveTeam | null; gain: number | null; alternatives: ImproveTeam[];
+  diagnosis: OptimizeResponse["diagnosis"]; unscored: { player_id: number; name: string }[]; notes: string[];
 }
 
 export interface Comparison { players: Profile[]; same_role: boolean; }
@@ -187,6 +209,10 @@ export const api = {
   leagues: () => request<League[]>("/leagues"),
   players: (q: PlayerQuery) => request<PlayerPage>(`/players${query({ ...q })}`),
   player: (id: number) => request<Profile>(`/players/${id}`),
-  dashboard: () => request<Dashboard>("/stats/dashboard"),
+  dashboard: (maxAge?: number | null) => request<Dashboard>(`/stats/dashboard${query({ max_age: maxAge ?? undefined })}`),
+  clubs: (q: string) => request<Club[]>(`/clubs${query({ q })}`),
+  squad: (clubId: number) => request<Squad>(`/clubs/${clubId}/squad`),
+  squadPlayers: (ids: number[]) => request<SquadPlayer[]>(`/squad/players${query({ ids })}`),
+  improve: (body: ImproveRequest) => request<ImproveResponse>("/optimize/improve", { method: "POST", body: JSON.stringify(body) }),
   compare: (ids: number[]) => request<Comparison>(`/players/compare${query({ ids })}`),
 };

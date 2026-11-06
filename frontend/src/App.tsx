@@ -10,6 +10,7 @@ import Explorer from "./pages/Explorer";
 import Profile from "./pages/Profile";
 import Compare from "./pages/Compare";
 import Dashboard from "./pages/Dashboard";
+import Improve from "./pages/Improve";
 
 function RequireAuth({ children }: { children: ReactNode }) {
   const { user, ready } = useAuth();
@@ -27,6 +28,7 @@ export default function App() {
       <Route element={<RequireAuth><Shell /></RequireAuth>}>
         <Route index element={<Dashboard />} />
         <Route path="builder" element={<Builder />} />
+        <Route path="improve" element={<Improve />} />
         <Route path="players" element={<Explorer />} />
         <Route path="players/:id" element={<Profile />} />
         <Route path="compare" element={<Compare />} />

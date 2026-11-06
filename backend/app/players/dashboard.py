@@ -29,14 +29,16 @@ def league_status(scored: int, coverage: float) -> str:
 def value_picks(rows: list[service.Row]) -> dict[str, list[service.Row]]:
     """Best value for money per role among regulars who still played 900+ minutes in 2025/26.
 
-    Only players whose value for money is shown (the role's price model explains enough), who score in
+    Only players whose value for money is shown (the role's price model explains enough) and positive
+    (an overpriced player is never a "best value" pick, even when he is the least overpriced), who score in
     the top half of their role (50+), whose score is at least medium reliability, and whose league data is
     complete enough to trust. Without the score floor a very cheap, weak player can top the list, because
     his low price predicts an even lower score.
     """
     picks: dict[str, list[service.Row]] = {}
     for role in ROLES:
-        pool = [r for r in rows if r.role == role and r.value_for_money is not None and r.score >= MIN_PICK_SCORE
+        pool = [r for r in rows if r.role == role and r.value_for_money is not None and r.value_for_money > 0
+                and r.score >= MIN_PICK_SCORE
                 and r.reliability in {"high", "medium"}
                 and r.minutes_next >= 900 and r.price_eur is not None]
         pool.sort(key=lambda r: (-r.value_for_money, r.player_id))
@@ -61,7 +63,7 @@ def budget_picks(rows: list[service.Row], cap: int) -> dict[str, list[service.Ro
     return picks
 
 
-def dashboard(db: Session) -> dict:
+def dashboard(db: Session, max_age: int | None = None) -> dict:
     leagues = db.scalars(select(League).where(League.enabled.is_(True)).order_by(League.id)).all()
     rows = service.all_rows(db)
     coverage = coverage_vs_transfermarkt(db, leagues, service.SCORED_SEASON) if leagues else {}
@@ -100,13 +102,15 @@ def dashboard(db: Session) -> dict:
     if model is not None:
         adj = db.scalar(select(LeagueAdjustment).where(LeagueAdjustment.model_id == model.id,
                                                        LeagueAdjustment.season == service.SCORED_SEASON))
-    trusted = [r for r in rows if r.league_id in complete_ids]
+    trusted = [r for r in rows if r.league_id in complete_ids
+               and (max_age is None or (r.age is not None and r.age <= max_age))]
     picks = value_picks(trusted)
     # value for money is shown for a role only when its price model explains enough (scoring run, R^2 >= 0.10)
     vfm_shown = {role: any(r.role == role and r.value_for_money is not None for r in rows) for role in ROLES}
 
     return {
         "season": service.SCORED_SEASON,
+        "max_age": max_age,
         "recent_season": service.RECENT_SEASON,
         "totals": {
             "players_scored": len(rows),

@@ -31,6 +31,7 @@ def test_value_picks_rules():
         row(7, vfm=None),                      # value for money hidden for the role: excluded
         row(8, vfm=70, price=None),            # no valuation: excluded
         row(10, vfm=80, score=12.0),           # cheap but weak: excluded by the score floor
+        row(11, vfm=-3.0),                     # overpriced: never a value pick
         row(9, role="CB", vfm=5),
     ]
     picks = value_picks(rows)
@@ -86,3 +87,11 @@ def test_dashboard_reports_budget_lists_and_hidden_roles(seeded):  # noqa: F811
     assert d["value_for_money_shown"]["CB"] is False
     # centre-backs still playing 900+ in 2025/26: only player 0 (EUR 1m)
     assert [r["player_id"] for r in d["budget_picks"]["1000000"]["CB"]] == [players[0].id]
+
+
+def test_dashboard_age_limit(seeded):  # noqa: F811
+    c, players, league = seeded
+    d = c.get("/api/v1/stats/dashboard", params={"max_age": 20}).json()
+    assert d["max_age"] == 20
+    assert all(r["age"] <= 20 for lists in d["budget_picks"].values() for rs in lists.values() for r in rs)
+    assert c.get("/api/v1/stats/dashboard", params={"max_age": 99}).status_code == 422

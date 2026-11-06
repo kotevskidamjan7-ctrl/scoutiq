@@ -201,6 +201,7 @@ class ModelStatus(BaseModel):
 
 class DashboardOut(BaseModel):
     season: int
+    max_age: int | None
     recent_season: int
     totals: DashboardTotals
     leagues: list[DashboardLeague]

@@ -19,6 +19,7 @@ export default function Shell() {
         <nav aria-label="Main" className="flex flex-wrap gap-1 lg:flex-col">
           <NavLink to="/" end className={link}>Dashboard</NavLink>
           <NavLink to="/builder" className={link}>Squad builder</NavLink>
+          <NavLink to="/improve" className={link}>Improve my club</NavLink>
           <NavLink to="/players" className={link}>Players</NavLink>
           <NavLink to="/compare" className={link}>
             Compare{picks.length > 0 && <span className="num ml-2 font-normal">({picks.length})</span>}

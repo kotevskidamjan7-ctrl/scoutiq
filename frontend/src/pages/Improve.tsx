@@ -1,0 +1,390 @@
+// Club improvement (Mode B): start from your squad, find the signings that improve the starting XI most.
+import { FormEvent, ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { Link } from "react-router-dom";
+import { api, ApiError, Club, ImproveRequest, ImproveResponse, PlayerRow, Role, SquadPlayer } from "../lib/api";
+import { eur, ROLE_NAMES, signed } from "../lib/format";
+import { FORMATIONS } from "../lib/formations";
+import { applyImproveSuggestion, DEFAULT_IMPROVE, ImproveForm, replacements, ROLE_COUNTS, toImproveRequest } from "../lib/improve";
+import TacticsBoard from "../components/TacticsBoard";
+
+function Field({ id, label, error, hint, children }: { id: string; label: string; error?: string; hint?: string; children: ReactNode }) {
+  return (
+    <div>
+      <label htmlFor={id} className="label">{label}</label>
+      {children}
+      {hint && !error && <p className="mt-1 text-xs text-ink-faint">{hint}</p>}
+      {error && <p id={`${id}-error`} className="mt-1 text-xs font-medium text-signal">{error}</p>}
+    </div>
+  );
+}
+
+/** Search box with a list of matches underneath; used for clubs and for adding players. */
+function Finder<T>({ id, label, placeholder, search, render, onPick }: {
+  id: string; label: string; placeholder: string; search: (q: string) => Promise<T[]>;
+  render: (t: T) => ReactNode; onPick: (t: T) => void;
+}) {
+  const [q, setQ] = useState("");
+  const [hits, setHits] = useState<T[]>([]);
+  const searchRef = useRef(search);   // the latest search function, without re-running the effect for it
+  searchRef.current = search;
+  useEffect(() => {
+    if (q.trim().length < 2) { setHits([]); return; }
+    let live = true;
+    const t = setTimeout(() => searchRef.current(q.trim()).then((h) => live && setHits(h.slice(0, 8))).catch(() => live && setHits([])), 250);
+    return () => { live = false; clearTimeout(t); };
+  }, [q]);
+  return (
+    <div>
+      <label htmlFor={id} className="label">{label}</label>
+      <input id={id} type="search" className="field" placeholder={placeholder} value={q} onChange={(e) => setQ(e.target.value)} autoComplete="off" />
+      {hits.length > 0 && (
+        <ul className="mt-1 divide-y divide-rule overflow-hidden rounded-md border border-rule bg-surface-raised">
+          {hits.map((h, i) => (
+            <li key={i}>
+              <button type="button" className="w-full px-3 py-2 text-left text-sm hover:bg-surface-sunk"
+                      onClick={() => { onPick(h); setQ(""); setHits([]); }}>
+                {render(h)}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+export default function Improve() {
+  const [club, setClub] = useState<Club | null>(null);
+  const [squad, setSquad] = useState<SquadPlayer[]>([]);
+  const [inSquad, setInSquad] = useState<Set<number>>(new Set());
+  const [locked, setLocked] = useState<Set<number>>(new Set());
+  const [form, setForm] = useState<ImproveForm>(DEFAULT_IMPROVE);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [result, setResult] = useState<ImproveResponse | null>(null);
+  const [lastReq, setLastReq] = useState<ImproveRequest | null>(null);
+  const [failure, setFailure] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [tab, setTab] = useState(0);
+
+  const set = <K extends keyof ImproveForm>(k: K, v: ImproveForm[K]) => setForm((f) => ({ ...f, [k]: v }));
+  const toggle = (s: Set<number>, id: number) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; };
+
+  async function pickClub(c: Club) {
+    setClub(c); setResult(null); setFailure(null);
+    try {
+      const s = await api.squad(c.id);
+      setSquad(s.players);
+      setInSquad(new Set(s.players.filter((p) => p.score != null).map((p) => p.player_id)));
+      setLocked(new Set());
+    } catch (e) { setFailure(e instanceof ApiError ? e.message : "Could not load the squad."); }
+  }
+
+  async function addPlayer(p: PlayerRow) {
+    if (squad.some((s) => s.player_id === p.player_id)) { setInSquad((s) => new Set(s).add(p.player_id)); return; }
+    const [row] = await api.squadPlayers([p.player_id]);
+    if (row) { setSquad((s) => [...s, row]); setInSquad((s) => new Set(s).add(row.player_id)); }
+  }
+
+  async function run(f: ImproveForm, lockedNow: Set<number> = locked) {
+    const { req, errors } = toImproveRequest(f, squad, inSquad, lockedNow);
+    setErrors(errors);
+    if (!req) return;
+    setLoading(true); setFailure(null);
+    try { setResult(await api.improve(req)); setLastReq(req); setTab(0); }
+    catch (e) { setFailure(e instanceof ApiError ? e.message : "Something went wrong while finding signings."); }
+    finally { setLoading(false); }
+  }
+  const submit = (e: FormEvent) => { e.preventDefault(); run(form); };
+
+  const plans = result?.team ? [result.team, ...result.alternatives] : [];
+  const plan = plans[Math.min(tab, Math.max(plans.length - 1, 0))] ?? null;
+  const ownedIds = useMemo(() => new Set(lastReq?.owned_player_ids ?? []), [lastReq]);
+  const repl = useMemo(() => (plan && result?.current ? replacements(result.current.players, plan.players) : new Map()), [plan, result]);
+  const signings = plan?.players.filter((p) => p.signing) ?? [];
+  const gain = plan && result?.current ? Math.round((plan.total_score - result.current.total_score) * 10) / 10 : null;
+  const scoredInSquad = squad.filter((p) => inSquad.has(p.player_id) && p.score != null).length;
+  const lockedPerRole = squad.reduce<Record<string, number>>((acc, p) => {
+    if (locked.has(p.player_id) && p.role) acc[p.role] = (acc[p.role] ?? 0) + 1;
+    return acc;
+  }, {});
+  const roleFull = (role: string | null) => !!role && (lockedPerRole[role] ?? 0) >= (ROLE_COUNTS[form.formation]?.[role] ?? 0);
+
+  return (
+    <div className="grid gap-8 xl:grid-cols-[24rem_1fr]">
+      <form onSubmit={submit} noValidate className="space-y-6" aria-label="Club and requirements">
+        <div>
+          <h1 className="condensed text-4xl font-bold leading-tight">Improve my club</h1>
+          <p className="mt-1 text-ink-soft">Start from your squad. Find the signings that improve your starting XI the most.</p>
+        </div>
+
+        <Finder<Club> id="club" label={club ? "Change club" : "Your club"} placeholder="For example Brentford"
+                      search={api.clubs} onPick={pickClub}
+                      render={(c) => <><span className="font-semibold">{c.name}</span> <span className="text-ink-faint">{c.league}</span></>} />
+
+        {club && (
+          <section aria-label="Squad" className="rounded-md border border-rule bg-surface-raised">
+            <div className="border-b border-rule px-3 py-2">
+              <p className="font-semibold">{club.name}</p>
+              <p className="text-xs text-ink-faint">
+                {scoredInSquad} players with a score in the squad. Untick players who have left (they are not suggested as
+                signings); lock players who must start.
+              </p>
+            </div>
+            <ul className="max-h-[22rem] divide-y divide-rule overflow-y-auto">
+              {squad.map((p) => {
+                const on = inSquad.has(p.player_id);
+                const unscored = p.score == null;
+                return (
+                  <li key={p.player_id} className={`flex items-center gap-2 px-3 py-1.5 text-sm ${on ? "" : "opacity-50"}`}>
+                    <input type="checkbox" className="h-4 w-4 accent-board" checked={on} aria-label={`${p.name} is in the squad`}
+                           onChange={() => { setInSquad((s) => toggle(s, p.player_id)); setLocked((s) => { const n = new Set(s); n.delete(p.player_id); return n; }); }} />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate font-medium">{p.name}</span>
+                      <span className="block text-xs text-ink-faint">
+                        {unscored ? "No 2024/25 score, left out" : `${ROLE_NAMES[p.role!]}, age ${p.age ?? "–"}`}
+                      </span>
+                    </span>
+                    <span className="num w-10 text-right font-semibold">{unscored ? "–" : p.score!.toFixed(0)}</span>
+                    <button type="button" aria-pressed={locked.has(p.player_id)}
+                            disabled={!on || unscored || (!locked.has(p.player_id) && roleFull(p.role))}
+                            title={!locked.has(p.player_id) && roleFull(p.role) ? `${form.formation} has no more room for this position` : undefined}
+                            onClick={() => setLocked((s) => toggle(s, p.player_id))}
+                            className={["w-20 rounded px-2 py-1 text-xs font-semibold disabled:opacity-30",
+                              locked.has(p.player_id) ? "bg-board text-chalk" : "border border-rule text-ink-soft hover:bg-surface-sunk"].join(" ")}>
+                      {locked.has(p.player_id) ? "Must start" : "Lock"}
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+            <div className="border-t border-rule p-3">
+              <Finder<PlayerRow> id="add" label="Add a player" placeholder="A signing the data does not know yet"
+                                 search={(q) => api.players({ q, min_minutes: 450, limit: 8 }).then((r) => r.items)}
+                                 onPick={addPlayer}
+                                 render={(p) => <><span className="font-semibold">{p.name}</span> <span className="text-ink-faint">{ROLE_NAMES[p.role]}, {p.club}</span></>} />
+            </div>
+          </section>
+        )}
+        {errors.squad && <p className="text-xs font-medium text-signal">{errors.squad}</p>}
+        {Object.entries(lockedPerRole).some(([r, n]) => n > (ROLE_COUNTS[form.formation]?.[r] ?? 0)) && (
+          <p className="text-xs font-medium text-signal">
+            You locked more players in one position than {form.formation} has room for. Unlock some or pick another formation.
+          </p>
+        )}
+
+        <fieldset>
+          <legend className="label">Formation</legend>
+          <div className="flex flex-wrap gap-2">
+            {FORMATIONS.map((f) => (
+              <label key={f} className={["num cursor-pointer rounded-md border px-3 py-1.5 text-sm font-semibold has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-marker",
+                form.formation === f ? "border-board bg-board text-chalk" : "border-rule bg-surface-raised hover:bg-surface-sunk"].join(" ")}>
+                <input type="radio" name="formation" className="sr-only" checked={form.formation === f} onChange={() => set("formation", f)} />{f}
+              </label>
+            ))}
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend className="label">Positions to sign</legend>
+          <div className="flex flex-wrap gap-2">
+            {(["GK", "CB", "FB", "CM", "AW", "ST"] as Role[]).map((r) => {
+              const on = form.signingRoles.includes(r);
+              return (
+                <button key={r} type="button" aria-pressed={on}
+                        onClick={() => set("signingRoles", on ? form.signingRoles.filter((x) => x !== r) : [...form.signingRoles, r])}
+                        className={["rounded-md border px-3 py-1.5 text-sm font-semibold",
+                          on ? "border-board bg-board text-chalk" : "border-rule bg-surface-raised hover:bg-surface-sunk"].join(" ")}>
+                  {ROLE_NAMES[r]}
+                </button>
+              );
+            })}
+          </div>
+          <p className="mt-1 text-xs text-ink-faint">
+            {form.signingRoles.length === 0
+              ? "None chosen: signings can be in any position."
+              : `Signings only as ${form.signingRoles.map((r) => ROLE_NAMES[r].toLowerCase()).join(" or ")}. Your own players still cover every position.`}
+          </p>
+        </fieldset>
+
+        <div className="grid grid-cols-2 gap-3">
+          <Field id="budget" label="Transfer budget" error={errors.budget} hint="For example 5m, 500k or 0">
+            <input id="budget" className="field num text-lg font-semibold" value={form.budget} inputMode="decimal"
+                   aria-invalid={!!errors.budget} onChange={(e) => set("budget", e.target.value)} />
+          </Field>
+          <div>
+            <span className="label" id="signings-label">Most signings</span>
+            <div className="flex items-center gap-1" role="group" aria-labelledby="signings-label">
+              <button type="button" className="btn-quiet h-11 w-11 p-0" aria-label="One signing fewer"
+                      disabled={form.maxSignings === 0} onClick={() => set("maxSignings", form.maxSignings - 1)}>−</button>
+              <span className="num w-10 text-center text-lg font-semibold" aria-live="polite">{form.maxSignings}</span>
+              <button type="button" className="btn-quiet h-11 w-11 p-0" aria-label="One signing more"
+                      disabled={form.maxSignings >= 11} onClick={() => set("maxSignings", form.maxSignings + 1)}>+</button>
+            </div>
+          </div>
+        </div>
+
+        <details className="rounded-md border border-rule bg-surface-raised" open={!!(form.ageMin || form.ageMax || form.maxPrice || form.includeLowMinutes || !form.recentForm)}>
+          <summary className="cursor-pointer px-3 py-2 font-semibold">Filters for signings</summary>
+          <div className="space-y-4 border-t border-rule px-3 py-4">
+            <div className="grid grid-cols-2 gap-3">
+              <Field id="ageMin" label="Youngest age" error={errors.ageMin}>
+                <input id="ageMin" className="field num" inputMode="numeric" placeholder="Any" value={form.ageMin} onChange={(e) => set("ageMin", e.target.value)} />
+              </Field>
+              <Field id="ageMax" label="Oldest age" error={errors.ageMax}>
+                <input id="ageMax" className="field num" inputMode="numeric" placeholder="Any" value={form.ageMax} onChange={(e) => set("ageMax", e.target.value)} />
+              </Field>
+            </div>
+            <Field id="maxPrice" label="Most for one player" error={errors.maxPrice}>
+              <input id="maxPrice" className="field num" placeholder="No limit" value={form.maxPrice} onChange={(e) => set("maxPrice", e.target.value)} />
+            </Field>
+            <label className="flex items-start gap-2 text-sm">
+              <input type="checkbox" className="mt-0.5 h-4 w-4 accent-board" checked={form.recentForm} onChange={(e) => set("recentForm", e.target.checked)} />
+              <span>Still playing: 900+ league minutes in 2025/26</span>
+            </label>
+            <label className="flex items-start gap-2 text-sm">
+              <input type="checkbox" className="mt-0.5 h-4 w-4 accent-board" checked={form.includeLowMinutes} onChange={(e) => set("includeLowMinutes", e.target.checked)} />
+              <span>Include players with 450–899 minutes in 2024/25 (less reliable scores)</span>
+            </label>
+            <p className="text-xs text-ink-faint">Filters apply to signings only. Your own players are always available.</p>
+          </div>
+        </details>
+
+        <button type="submit" className="btn-primary w-full py-3 text-lg" disabled={loading}>
+          {loading ? "Finding signings…" : "Find the best signings"}
+        </button>
+      </form>
+
+      <section aria-label="Result" className="min-w-0 space-y-6">
+        {failure && <div role="alert" className="rounded-md border border-signal/40 bg-signal-soft px-4 py-3 text-signal">{failure}</div>}
+
+        {!result && !failure && (
+          <div className="rounded-lg border border-dashed border-rule p-6 text-ink-soft">
+            <p className="font-semibold text-ink">How it works</p>
+            <p className="mt-1">Your players count as free. A signing only starts if he is better than the player he replaces,
+              so the result shows exactly how much each purchase adds. Set the budget to 0 to see your best XI as it is.</p>
+          </div>
+        )}
+
+        {result && !result.team && result.diagnosis && (
+          <div role="alert" className="rounded-lg border border-rule bg-surface-raised p-4">
+            <h2 className="condensed text-2xl font-bold">No plan fits these requirements</h2>
+            <p className="mt-1 text-ink-soft first-letter:uppercase">{result.diagnosis.reason}.</p>
+            {Object.keys(result.current_missing).length > 0 && !result.diagnosis.reason.includes("more starters") && !result.diagnosis.reason.includes("positions to sign") && (
+              <p className="mt-1 text-ink-soft">
+                Your squad is short of: {Object.entries(result.current_missing).map(([r, n]) => `${n} ${ROLE_NAMES[r as keyof typeof ROLE_NAMES].toLowerCase()}${n! > 1 ? "s" : ""}`).join(", ")}.
+              </p>
+            )}
+            {result.diagnosis.suggestions.length > 0 && (
+              <ul className="mt-3 divide-y divide-rule">
+                {result.diagnosis.suggestions.map((s) => {
+                  const unlock = s.unlock_ids ?? [];
+                  const add = s.add_roles ?? [];
+                  const next = unlock.length ? form
+                    : add.length ? { ...form, signingRoles: [...new Set([...form.signingRoles, ...add])] }
+                    : applyImproveSuggestion(form, s.change, result.diagnosis);
+                  const apply = () => {
+                    if (unlock.length) {
+                      const fewer = new Set([...locked].filter((id) => !unlock.includes(id)));
+                      setLocked(fewer); run(form, fewer);
+                    } else if (next) { setForm(next); run(next); }
+                  };
+                  return (
+                    <li key={s.change} className="flex flex-wrap items-center justify-between gap-3 py-2">
+                      <span>
+                        <span className="block font-semibold first-letter:uppercase">{s.change}</span>
+                        <span className="num block text-sm text-ink-soft">Best XI then scores {s.total_score.toFixed(1)}, signings cost {eur(s.cost_eur)}</span>
+                      </span>
+                      {next && <button type="button" className="btn-quiet py-1.5 text-sm" onClick={apply}>Try this</button>}
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+        )}
+
+        {result && plan && (
+          <>
+            {plans.length > 1 && (
+              <div role="tablist" aria-label="Plans" className="flex flex-wrap gap-2">
+                {plans.map((t, k) => (
+                  <button key={k} role="tab" type="button" aria-selected={k === tab} onClick={() => setTab(k)}
+                          className={["rounded-md border px-3 py-1.5 text-sm font-semibold",
+                            k === tab ? "border-board bg-board text-chalk" : "border-rule bg-surface-raised hover:bg-surface-sunk"].join(" ")}>
+                    {k === 0 ? "Best plan" : `Alternative ${k}`}
+                    {result.current && <span className="num ml-2 font-normal opacity-80">{signed(t.total_score - result.current.total_score)}</span>}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            <div className="flex flex-wrap items-end gap-x-10 gap-y-3">
+              {gain != null && (
+                <p>
+                  <span className="condensed num block text-6xl font-extrabold leading-none">{signed(gain)}</span>
+                  <span className="text-sm text-ink-soft">
+                    starting XI total score, from {result.current!.total_score.toFixed(1)} to {plan.total_score.toFixed(1)}
+                  </span>
+                </p>
+              )}
+              <p className="text-sm text-ink-soft">
+                <span className="num block text-2xl font-bold text-ink">{eur(plan.cost_eur)}</span>
+                spent of {eur(result.budget_eur)}, {signings.length} of at most {lastReq?.max_signings} signings
+              </p>
+            </div>
+
+            {signings.length === 0 ? (
+              <p className="rounded-md bg-surface-sunk p-4">
+                No affordable signing is better than your current starters. This is your best XI as it is.
+              </p>
+            ) : (
+              <ul className="divide-y divide-rule rounded-lg border border-rule bg-surface-raised" aria-label="Signings">
+                {signings.map((p) => {
+                  const r = repl.get(p.player_id);
+                  return (
+                    <li key={p.player_id} className="flex flex-wrap items-center gap-x-6 gap-y-1 px-4 py-3">
+                      <span className="min-w-[14rem] flex-1">
+                        <Link to={`/players/${p.player_id}`} className="font-semibold underline-offset-4 hover:underline">{p.name}</Link>
+                        <span className="block text-xs text-ink-faint">
+                          {ROLE_NAMES[p.role as keyof typeof ROLE_NAMES]}, age {p.age ?? "–"}. 2024/25: {p.club_2024_25} ({p.league})
+                        </span>
+                      </span>
+                      <span className="text-sm text-ink-soft">
+                        {r ? <>Replaces <span className="font-medium text-ink">{r.name}</span> ({r.score.toFixed(1)})</> : "Fills a gap"}
+                      </span>
+                      <span className="num w-28 text-right">
+                        <span className="font-semibold">{p.score.toFixed(1)}</span>
+                        {r && <span className="text-sm text-ink-soft"> ({signed(p.score - r.score)})</span>}
+                        <span className="block text-xs text-ink-faint">{eur(p.price_eur)}</span>
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+
+            <div className="grid gap-6 lg:grid-cols-2">
+              <figure>
+                <figcaption className="mb-2 font-semibold">Your XI now</figcaption>
+                {result.current
+                  ? <TacticsBoard team={result.current} formation={lastReq?.formation} ownIds={ownedIds} />
+                  : <p className="rounded-md bg-surface-sunk p-4 text-sm">Your squad cannot fill this formation on its own.</p>}
+              </figure>
+              <figure>
+                <figcaption className="mb-2 font-semibold">With the signings <span className="font-normal text-ink-soft">(yellow ring = new)</span></figcaption>
+                <TacticsBoard team={plan} formation={lastReq?.formation} bestIds={ownedIds} ownIds={ownedIds} />
+              </figure>
+            </div>
+
+            {(result.unscored.length > 0 || result.notes.length > 0) && (
+              <ul className="space-y-1 text-sm text-ink-soft">
+                {result.notes.map((n) => <li key={n}>{n}</li>)}
+                {result.unscored.length > 0 && <li>Left out without a score: {result.unscored.map((u) => u.name).join(", ")}.</li>}
+              </ul>
+            )}
+          </>
+        )}
+      </section>
+    </div>
+  );
+}
