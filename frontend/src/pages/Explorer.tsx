@@ -3,7 +3,9 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { api, ApiError, League, PlayerPage, PlayerQuery, Role, SortKey } from "../lib/api";
 import { useCompare } from "../lib/compare";
-import { eur, num, parseMoney, ROLE_NAMES, signed } from "../lib/format";
+import AssistantBox from "../components/AssistantBox";
+import type { Interpretation } from "../lib/api";
+import { eur, moneyText, num, parseMoney, ROLE_NAMES, signed } from "../lib/format";
 
 const ROLES: Role[] = ["GK", "CB", "FB", "CM", "AW", "ST"];
 const PAGE = 50;
@@ -43,6 +45,7 @@ export default function Explorer() {
   const [loading, setLoading] = useState(false);
   const [text, setText] = useState(sp.get("q") ?? "");
   const [price, setPrice] = useState(sp.get("max_price") ?? "");
+  const [askKey, setAskKey] = useState(0);
   const compare = useCompare();
   const query = useMemo(() => toQuery(sp), [sp]);
 
@@ -86,6 +89,24 @@ export default function Explorer() {
     const order = same ? (query.order === "desc" ? "asc" : "desc") : k === "name" || k === "age" || k === "price_eur" ? "asc" : "desc";
     set({ sort: k, order });
   };
+  function applyReading(r: Interpretation) {
+    const f = r.filters;
+    const next = new URLSearchParams();
+    f.roles.forEach((x) => next.append("role", x));
+    r.league_ids.forEach((id) => next.append("league", String(id)));
+    if (f.age_min != null) next.set("age_min", String(f.age_min));
+    if (f.age_max != null) next.set("age_max", String(f.age_max));
+    if (f.max_price_eur) next.set("max_price", moneyText(f.max_price_eur));
+    if (f.still_playing) next.set("recent", "1");
+    if (f.include_low_minutes) next.set("low", "1");
+    setText(""); setPrice(f.max_price_eur ? moneyText(f.max_price_eur) : "");
+    setSp(next, { replace: false });
+    setAskKey((k) => k + 1); // remount the age boxes so they show the new values
+  }
+  const ignoredHere = (r: Interpretation) =>
+    r.understood.filter((u) => u.startsWith("Budget") || u.startsWith("Formation") || u.endsWith("nationality")
+      || u.startsWith("Nationality"));
+
   const priceError = price.trim() && parseMoney(price) == null ? "Write it like 3m or 750k." : null;
   const offset = query.offset ?? 0;
   const chip = (on: boolean) => [
@@ -100,7 +121,11 @@ export default function Explorer() {
         <p className="mt-1 text-ink-soft">Every player with a 2024/25 score. Click a name for the full profile.</p>
       </div>
 
-      <section aria-label="Filters" className="space-y-4">
+      <AssistantBox page="players" placeholder="Describe the player, e.g. a young left-back under €2m who still plays"
+                    examples={["striker from Serie A under 25", "cheap experienced goalkeeper", "млад штопер до 3 милиони"]}
+                    ignoredHere={ignoredHere} onApply={applyReading} />
+
+      <section aria-label="Filters" className="space-y-4" key={askKey}>
         <div className="flex flex-wrap items-end gap-4">
           <div className="w-full max-w-xs">
             <label htmlFor="q" className="label">Name</label>

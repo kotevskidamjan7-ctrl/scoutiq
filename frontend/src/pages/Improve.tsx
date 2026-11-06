@@ -4,7 +4,9 @@ import { Link } from "react-router-dom";
 import { api, ApiError, Club, ImproveRequest, ImproveResponse, PlayerRow, Role, SquadPlayer } from "../lib/api";
 import { eur, ROLE_NAMES, signed } from "../lib/format";
 import { FORMATIONS } from "../lib/formations";
-import { applyImproveSuggestion, DEFAULT_IMPROVE, ImproveForm, replacements, ROLE_COUNTS, toImproveRequest } from "../lib/improve";
+import { applyImproveSuggestion, DEFAULT_IMPROVE, ImproveForm, improveFromInterpretation, replacements, ROLE_COUNTS, toImproveRequest } from "../lib/improve";
+import AssistantBox from "../components/AssistantBox";
+import ScopeChips from "../components/ScopeChips";
 import TacticsBoard from "../components/TacticsBoard";
 
 function Field({ id, label, error, hint, children }: { id: string; label: string; error?: string; hint?: string; children: ReactNode }) {
@@ -53,6 +55,13 @@ function Finder<T>({ id, label, placeholder, search, render, onPick }: {
   );
 }
 
+// the field to put the cursor in for each kind of problem (default: the field with the same id)
+const FIELD_FOR: Record<string, string> = { squad: "club" };
+function focusFirst(errors: Record<string, string>) {
+  const first = Object.keys(errors)[0];
+  if (first) document.getElementById(FIELD_FOR[first] ?? first)?.focus();
+}
+
 export default function Improve() {
   const [club, setClub] = useState<Club | null>(null);
   const [squad, setSquad] = useState<SquadPlayer[]>([]);
@@ -88,7 +97,7 @@ export default function Improve() {
   async function run(f: ImproveForm, lockedNow: Set<number> = locked) {
     const { req, errors } = toImproveRequest(f, squad, inSquad, lockedNow);
     setErrors(errors);
-    if (!req) return;
+    if (!req) { focusFirst(errors); return; }
     setLoading(true); setFailure(null);
     try { setResult(await api.improve(req)); setLastReq(req); setTab(0); }
     catch (e) { setFailure(e instanceof ApiError ? e.message : "Something went wrong while finding signings."); }
@@ -172,6 +181,10 @@ export default function Improve() {
           </p>
         )}
 
+        <AssistantBox page="improve" placeholder="What do you need? e.g. a striker and a centre-back, 5m"
+                      examples={["a young full-back under 2m", "two midfielders, budget 8m, still playing", "искусен нападач до 3 милиони"]}
+                      onApply={(r) => { setForm((f) => improveFromInterpretation(r, f)); setErrors({}); }} />
+
         <fieldset>
           <legend className="label">Formation</legend>
           <div className="flex flex-wrap gap-2">
@@ -223,9 +236,11 @@ export default function Improve() {
           </div>
         </div>
 
-        <details className="rounded-md border border-rule bg-surface-raised" open={!!(form.ageMin || form.ageMax || form.maxPrice || form.includeLowMinutes || !form.recentForm)}>
+        <details className="rounded-md border border-rule bg-surface-raised" open={!!(form.ageMin || form.ageMax || form.maxPrice || form.includeLowMinutes || !form.recentForm || form.leagueIds.length || form.nationalities.length)}>
           <summary className="cursor-pointer px-3 py-2 font-semibold">Filters for signings</summary>
           <div className="space-y-4 border-t border-rule px-3 py-4">
+            <ScopeChips leagueIds={form.leagueIds} nationalities={form.nationalities}
+                        onChange={(l, n) => setForm((f) => ({ ...f, leagueIds: l, nationalities: n }))} />
             <div className="grid grid-cols-2 gap-3">
               <Field id="ageMin" label="Youngest age" error={errors.ageMin}>
                 <input id="ageMin" className="field num" inputMode="numeric" placeholder="Any" value={form.ageMin} onChange={(e) => set("ageMin", e.target.value)} />
@@ -249,6 +264,11 @@ export default function Improve() {
           </div>
         </details>
 
+        {Object.keys(errors).length > 0 && (
+          <p role="alert" className="rounded-md bg-signal-soft px-3 py-2 text-sm text-signal">
+            {Object.values(errors).join(" ")}
+          </p>
+        )}
         <button type="submit" className="btn-primary w-full py-3 text-lg" disabled={loading}>
           {loading ? "Finding signings…" : "Find the best signings"}
         </button>

@@ -48,3 +48,9 @@ export const RELIABILITY_TEXT: Record<string, string> = {
 export function num(n: number | null | undefined): string {
   return n == null ? "–" : n.toLocaleString("en");
 }
+
+
+/** A money amount as the forms accept it: 2500000 -> "2.5m", 750000 -> "750k". */
+export function moneyText(n: number): string {
+  return n >= 1_000_000 ? `${+(n / 1_000_000).toFixed(2)}m` : n >= 1_000 ? `${Math.round(n / 1_000)}k` : `${n}`;
+}

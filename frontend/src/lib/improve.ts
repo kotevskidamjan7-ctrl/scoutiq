@@ -1,6 +1,6 @@
 // Club improvement form state and how it becomes a request (and how diagnosis suggestions change it).
-import type { ImproveRequest, ImproveResponse, Role, SquadPlayer } from "./api";
-import { parseMoney } from "./format";
+import type { ImproveRequest, ImproveResponse, Interpretation, Role, SquadPlayer } from "./api";
+import { moneyText, parseMoney } from "./format";
 
 // players per role in each formation (same as the server's FORMATIONS)
 export const ROLE_COUNTS: Record<string, Record<string, number>> = {
@@ -21,11 +21,13 @@ export interface ImproveForm {
   maxPrice: string;
   recentForm: boolean;
   includeLowMinutes: boolean;
+  leagueIds: number[];
+  nationalities: string[];
 }
 
 export const DEFAULT_IMPROVE: ImproveForm = {
   formation: "4-3-3", budget: "5m", maxSignings: 2, signingRoles: [], ageMin: "", ageMax: "", maxPrice: "",
-  recentForm: true, includeLowMinutes: false,
+  recentForm: true, includeLowMinutes: false, leagueIds: [], nationalities: [],
 };
 
 const int = (s: string) => (s.trim() === "" ? null : Number.parseInt(s, 10));
@@ -54,11 +56,12 @@ export function toImproveRequest(f: ImproveForm, squad: SquadPlayer[], inSquad: 
       signing_roles: f.signingRoles,
       age_min: ageMin, age_max: ageMax, max_price_eur: maxPrice,
       min_minutes: f.includeLowMinutes ? 450 : 900, min_minutes_next: f.recentForm ? 900 : 0, alternatives: 2,
+      league_ids: f.leagueIds, nationalities: f.nationalities,
     },
   };
 }
 
-const money = (n: number) => (n >= 1_000_000 ? `${+(n / 1_000_000).toFixed(2)}m` : n >= 1_000 ? `${Math.round(n / 1_000)}k` : `${n}`);
+const money = moneyText;
 
 /** Turn a server suggestion (each one checked by re-solving) into a form change; null if the form cannot make it. */
 export function applyImproveSuggestion(f: ImproveForm, change: string, d: ImproveResponse["diagnosis"]): ImproveForm | null {
@@ -71,6 +74,8 @@ export function applyImproveSuggestion(f: ImproveForm, change: string, d: Improv
   const age = change.match(/^widen the age range to (\w+)-(\w+)/);
   if (age) return { ...f, ageMin: age[1] === "any" ? "" : age[1], ageMax: age[2] === "any" ? "" : age[2] };
   if (change.startsWith("remove the maximum price")) return { ...f, maxPrice: "" };
+  if (change === "search all supported leagues") return { ...f, leagueIds: [] };
+  if (change === "remove the nationality filter") return { ...f, nationalities: [] };
   if (change.startsWith("include low-reliability")) return { ...f, includeLowMinutes: true };
   if (change.startsWith("remove the 2025/26 minutes")) return { ...f, recentForm: false };
   if (change === "allow signings in any position") return { ...f, signingRoles: [] };
@@ -88,4 +93,23 @@ export function replacements(current: { player_id: number; role: string; score: 
     out.set(s.player_id, i >= 0 ? dropped.splice(i, 1)[0] : null);
   }
   return out;
+}
+
+
+/** Fill the improvement form from an assistant reading; positions become the positions to sign. */
+export function improveFromInterpretation(r: Interpretation, current: ImproveForm): ImproveForm {
+  const f = r.filters;
+  const total = Object.values(f.role_counts).reduce((a, b) => a + (b ?? 0), 0);
+  return {
+    ...DEFAULT_IMPROVE,
+    formation: f.formation ?? current.formation,
+    budget: f.budget_eur ? money(f.budget_eur) : current.budget,
+    maxSignings: total > 0 ? total : f.roles.length > 0 ? Math.max(f.roles.length, 1) : current.maxSignings,
+    signingRoles: f.roles,
+    ageMin: f.age_min?.toString() ?? "", ageMax: f.age_max?.toString() ?? "",
+    maxPrice: f.max_price_eur ? money(f.max_price_eur) : "",
+    recentForm: f.still_playing ?? DEFAULT_IMPROVE.recentForm,
+    includeLowMinutes: !!f.include_low_minutes,
+    leagueIds: r.league_ids, nationalities: f.nationalities,
+  };
 }

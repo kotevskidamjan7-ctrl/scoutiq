@@ -17,6 +17,8 @@ class Settings(BaseSettings):
     raw_dir: str = "/raw"  # cached API responses (mounted from ./raw)
     jwt_secret: str  # required: signs login tokens; set JWT_SECRET in .env, never commit it
     jwt_minutes: int = 60  # how long a login token stays valid
+    anthropic_api_key: str | None = None  # optional: the assistant uses an AI model only when this is set
+    assistant_model: str = "claude-haiku-5-5"  # small, fast model; the task is only filling in filters
 
     @field_validator("jwt_secret")
     @classmethod

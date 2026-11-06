@@ -67,6 +67,7 @@ def improve(body: ImproveRequest, db: Session = Depends(get_db)) -> ImproveRespo
     locked = [o for o in owned if o.player_id in set(body.locked_player_ids)]
 
     common = dict(age_min=body.age_min, age_max=body.age_max, league_ids=tuple(body.league_ids),
+                  nationalities=tuple(body.nationalities),
                   max_price=body.max_price_eur, min_minutes=body.min_minutes,
                   min_minutes_next=body.min_minutes_next or None, alternatives=body.alternatives,
                   owned_ids=tuple(scored_ids), exclude_ids=tuple(owned_ids | set(body.left_player_ids)),  # gone players are not bought back

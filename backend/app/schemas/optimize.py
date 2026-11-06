@@ -110,6 +110,7 @@ class ImproveRequest(BaseModel):
     age_min: int | None = Field(None, ge=15, le=45)
     age_max: int | None = Field(None, ge=15, le=45)
     league_ids: list[int] = []
+    nationalities: list[str] = []
     max_price_eur: int | None = Field(None, gt=0)
     min_minutes: int = Field(900, ge=450, le=4000)
     min_minutes_next: int = Field(900, ge=0, le=4000)

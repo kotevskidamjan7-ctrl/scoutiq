@@ -10,6 +10,7 @@ export interface OptimizeRequest {
   age_min?: number | null;
   age_max?: number | null;
   league_ids?: number[];
+  nationalities?: string[];
   max_price_eur?: number | null;
   min_minutes?: number;
   min_minutes_next?: number;
@@ -129,7 +130,7 @@ export interface Squad { club: Club; players: SquadPlayer[]; }
 
 export interface ImproveRequest {
   formation: string; budget_eur: number; owned_player_ids: number[]; locked_player_ids?: number[]; left_player_ids?: number[];
-  max_signings?: number; signing_roles?: Role[]; age_min?: number | null; age_max?: number | null; max_price_eur?: number | null;
+  max_signings?: number; signing_roles?: Role[]; nationalities?: string[]; league_ids?: number[]; age_min?: number | null; age_max?: number | null; max_price_eur?: number | null;
   min_minutes?: number; min_minutes_next?: number; alternatives?: number;
 }
 export interface ImprovePlayer extends PlayerOut { signing: boolean; }
@@ -140,6 +141,16 @@ export interface ImproveResponse {
   current: ImproveTeam | null; current_missing: Partial<Record<Role, number>>;
   team: ImproveTeam | null; gain: number | null; alternatives: ImproveTeam[];
   diagnosis: OptimizeResponse["diagnosis"]; unscored: { player_id: number; name: string }[]; notes: string[];
+}
+
+export interface AssistantFilters {
+  roles: Role[]; role_counts: Partial<Record<Role, number>>; age_min: number | null; age_max: number | null;
+  max_price_eur: number | null; budget_eur: number | null; leagues: string[]; nationalities: string[];
+  still_playing: boolean | null; include_low_minutes: boolean | null; formation: string | null;
+}
+export interface Interpretation {
+  engine: "ai" | "rules"; filters: AssistantFilters; league_ids: number[];
+  understood: string[]; not_applied: string[]; note: string | null;
 }
 
 export interface Comparison { players: Profile[]; same_role: boolean; }
@@ -213,6 +224,8 @@ export const api = {
   clubs: (q: string) => request<Club[]>(`/clubs${query({ q })}`),
   squad: (clubId: number) => request<Squad>(`/clubs/${clubId}/squad`),
   squadPlayers: (ids: number[]) => request<SquadPlayer[]>(`/squad/players${query({ ids })}`),
+  interpret: (text: string, page: "players" | "builder" | "improve") =>
+    request<Interpretation>("/assistant/interpret", { method: "POST", body: JSON.stringify({ text, page }) }),
   improve: (body: ImproveRequest) => request<ImproveResponse>("/optimize/improve", { method: "POST", body: JSON.stringify(body) }),
   compare: (ids: number[]) => request<Comparison>(`/players/compare${query({ ids })}`),
 };

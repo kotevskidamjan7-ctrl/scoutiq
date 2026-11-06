@@ -1,0 +1,105 @@
+{
+  "created": "2026-11-06T18:31:48.276282+00:00",
+  "results": [
+    {
+      "set": "tuning",
+      "engine": "rules",
+      "requests": 40,
+      "exact": 40,
+      "exact_rate": 1.0,
+      "field_accuracy": 1.0,
+      "errors": 0,
+      "avg_ms": 1.4,
+      "misses": []
+    },
+    {
+      "set": "holdout",
+      "engine": "rules",
+      "requests": 20,
+      "exact": 13,
+      "exact_rate": 0.65,
+      "field_accuracy": 0.959,
+      "errors": 0,
+      "avg_ms": 1.0,
+      "misses": [
+        {
+          "text": "we have 8m to spend on a holding midfielder",
+          "wrong": {
+            "max_price_eur": {
+              "got": 8000000,
+              "expected": null
+            },
+            "budget_eur": {
+              "got": null,
+              "expected": 8000000
+            }
+          }
+        },
+        {
+          "text": "two strikers aged under 26 who play every week",
+          "wrong": {
+            "still_playing": {
+              "got": null,
+              "expected": true
+            }
+          }
+        },
+        {
+          "text": "German-based left back, young",
+          "wrong": {
+            "leagues": {
+              "got": [],
+              "expected": [
+                "L1"
+              ]
+            }
+          }
+        },
+        {
+          "text": "centre half from Italy, budget around 4 million",
+          "wrong": {
+            "roles": {
+              "got": [],
+              "expected": [
+                "CB"
+              ]
+            }
+          }
+        },
+        {
+          "text": "a 9 who is 27 or under",
+          "wrong": {
+            "roles": {
+              "got": [],
+              "expected": [
+                "ST"
+              ]
+            }
+          }
+        },
+        {
+          "text": "build me a 3-5-2 for €25,000,000",
+          "wrong": {
+            "max_price_eur": {
+              "got": 25000000,
+              "expected": null
+            },
+            "budget_eur": {
+              "got": null,
+              "expected": 25000000
+            }
+          }
+        },
+        {
+          "text": "goalie with experience, Premier League",
+          "wrong": {
+            "age_min": {
+              "got": null,
+              "expected": 29
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

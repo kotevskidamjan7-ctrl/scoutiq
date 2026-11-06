@@ -1,0 +1,22 @@
+[
+  {"text": "Looking for a quick right winger, not older than 24, value below 3 million euros", "expect": {"roles": ["AW"], "age_max": 24, "max_price_eur": 3000000}},
+  {"text": "we have 8m to spend on a holding midfielder", "expect": {"roles": ["CM"], "budget_eur": 8000000}},
+  {"text": "need a backup keeper, max 500k", "expect": {"roles": ["GK"], "max_price_eur": 500000}},
+  {"text": "two strikers aged under 26 who play every week", "expect": {"roles": ["ST"], "role_counts": {"ST": 2}, "age_max": 25, "still_playing": true}},
+  {"text": "German-based left back, young", "expect": {"roles": ["FB"], "leagues": ["L1"], "age_max": 23}},
+  {"text": "Moroccan wide player", "expect": {"roles": ["AW"], "nationalities": ["Morocco"]}},
+  {"text": "centre half from Italy, budget around 4 million", "expect": {"roles": ["CB"], "leagues": ["IT1"], "budget_eur": 4000000}},
+  {"text": "a 9 who is 27 or under", "expect": {"roles": ["ST"], "age_max": 27}},
+  {"text": "cheap box-to-box midfielder in France", "expect": {"roles": ["CM"], "leagues": ["FR1"], "max_price_eur": 2000000}},
+  {"text": "build me a 3-5-2 for €25,000,000", "expect": {"formation": "3-5-2", "budget_eur": 25000000}},
+  {"text": "Albanian or Kosovan striker", "expect": {"roles": ["ST"], "nationalities": ["Albania", "Kosovo"]}},
+  {"text": "full back u-23 in La Liga under 5m", "expect": {"roles": ["FB"], "age_max": 23, "leagues": ["ES1"], "max_price_eur": 5000000}},
+  {"text": "goalie with experience, Premier League", "expect": {"roles": ["GK"], "age_min": 29, "leagues": ["GB1"]}},
+  {"text": "winger 21-24 years old", "expect": {"roles": ["AW"], "age_min": 21, "age_max": 24}},
+  {"text": "одбранбен играч до 3 милиони", "expect": {"roles": ["CB", "FB"], "max_price_eur": 3000000}},
+  {"text": "млад голман од Германија", "expect": {"roles": ["GK"], "age_max": 23, "leagues": ["L1"]}},
+  {"text": "крило и нападач со буџет од 6 милиони", "expect": {"roles": ["AW", "ST"], "budget_eur": 6000000}},
+  {"text": "штопер што игра редовно, помлад од 27", "expect": {"roles": ["CB"], "still_playing": true, "age_max": 26}},
+  {"text": "нападач до 800 илјади евра", "expect": {"roles": ["ST"], "max_price_eur": 800000}},
+  {"text": "two wing-backs and a centre-back for a 3-4-3, total budget 12m", "expect": {"roles": ["FB", "CB"], "role_counts": {"FB": 2, "CB": 1}, "formation": "3-4-3", "budget_eur": 12000000}}
+]

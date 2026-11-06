@@ -1,6 +1,6 @@
 // Squad-builder form state, and how it turns into an API request (and back, for reopened scenarios).
-import type { OptimizeRequest, OptimizeResponse, Role } from "./api";
-import { eur, parseMoney } from "./format";
+import type { Interpretation, OptimizeRequest, OptimizeResponse, Role } from "./api";
+import { eur, moneyText, parseMoney } from "./format";
 
 export type Mode = "xi" | "signings";
 
@@ -15,6 +15,8 @@ export interface Form {
   maxPerClub: string;
   includeLowMinutes: boolean;   // min_minutes 450 instead of 900
   recentForm: boolean;          // min_minutes_next 900 instead of 0
+  leagueIds: number[];          // empty = all leagues
+  nationalities: string[];      // empty = any nationality
 }
 
 export const EMPTY_NEEDS: Record<Role, number> = { GK: 0, CB: 0, FB: 0, CM: 0, AW: 0, ST: 0 };
@@ -22,6 +24,7 @@ export const EMPTY_NEEDS: Record<Role, number> = { GK: 0, CB: 0, FB: 0, CM: 0, A
 export const DEFAULT_FORM: Form = {
   mode: "xi", budget: "15m", formation: "4-3-3", needs: { ...EMPTY_NEEDS, ST: 1, CM: 1, CB: 1 },
   ageMin: "", ageMax: "", maxPrice: "", maxPerClub: "", includeLowMinutes: false, recentForm: true,
+  leagueIds: [], nationalities: [],
 };
 
 const int = (s: string) => (s.trim() === "" ? null : Number.parseInt(s, 10));
@@ -49,6 +52,7 @@ export function toRequest(f: Form): { req: OptimizeRequest | null; errors: Recor
     age_min: ageMin, age_max: ageMax, max_price_eur: maxPrice, max_per_club: perClub,
     min_minutes: f.includeLowMinutes ? 450 : 900,
     min_minutes_next: f.recentForm ? 900 : 0,
+    league_ids: f.leagueIds, nationalities: f.nationalities,
     alternatives: 2,
   };
   if (f.mode === "xi") req.formation = f.formation;
@@ -56,7 +60,7 @@ export function toRequest(f: Form): { req: OptimizeRequest | null; errors: Recor
   return { req, errors };
 }
 
-const money = (n: number) => (n >= 1_000_000 ? `${+(n / 1_000_000).toFixed(2)}m` : n >= 1_000 ? `${Math.round(n / 1_000)}k` : `${n}`);
+const money = moneyText;
 
 export function fromRequest(r: OptimizeRequest): Form {
   return {
@@ -69,6 +73,7 @@ export function fromRequest(r: OptimizeRequest): Form {
     maxPerClub: r.max_per_club?.toString() ?? "",
     includeLowMinutes: (r.min_minutes ?? 900) < 900,
     recentForm: (r.min_minutes_next ?? 900) > 0,
+    leagueIds: r.league_ids ?? [], nationalities: r.nationalities ?? [],
   };
 }
 
@@ -78,6 +83,8 @@ export function applySuggestion(f: Form, change: string, d: OptimizeResponse["di
   const age = change.match(/^widen the age range to (\w+)-(\w+)/);
   if (age) return { ...f, ageMin: age[1] === "any" ? "" : age[1], ageMax: age[2] === "any" ? "" : age[2] };
   if (change.startsWith("remove the maximum price")) return { ...f, maxPrice: "" };
+  if (change === "search all supported leagues") return { ...f, leagueIds: [] };
+  if (change === "remove the nationality filter") return { ...f, nationalities: [] };
   if (change.startsWith("include low-reliability")) return { ...f, includeLowMinutes: true };
   if (change.startsWith("remove the 2025/26 minutes")) return { ...f, recentForm: false };
   if (change.startsWith("remove the limit per club")) return { ...f, maxPerClub: "" };
@@ -89,4 +96,24 @@ export function describe(r: OptimizeRequest): string {
     ? `Starting XI, ${r.formation}`
     : Object.entries(r.needs ?? {}).map(([role, n]) => `${n} ${role}`).join(" + ");
   return `${what}, budget ${eur(r.budget_eur)}`;
+}
+
+
+/** Fill the form from an assistant reading. Everything not mentioned goes back to its default. */
+export function formFromInterpretation(r: Interpretation, current: Form): Form {
+  const f = r.filters;
+  const counts = Object.keys(f.role_counts).length ? f.role_counts : Object.fromEntries(f.roles.map((x) => [x, 1]));
+  const signings = f.roles.length > 0 && !f.formation;
+  return {
+    ...DEFAULT_FORM,
+    mode: signings ? "signings" : "xi",
+    formation: f.formation ?? current.formation,
+    needs: signings ? { ...EMPTY_NEEDS, ...counts } : current.needs,
+    budget: f.budget_eur ? money(f.budget_eur) : current.budget,
+    ageMin: f.age_min?.toString() ?? "", ageMax: f.age_max?.toString() ?? "",
+    maxPrice: f.max_price_eur ? money(f.max_price_eur) : "",
+    includeLowMinutes: !!f.include_low_minutes,
+    recentForm: f.still_playing ?? DEFAULT_FORM.recentForm,
+    leagueIds: r.league_ids, nationalities: f.nationalities,
+  };
 }

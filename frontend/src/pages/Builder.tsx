@@ -2,7 +2,9 @@
 import { FormEvent, ReactNode, useCallback, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { api, ApiError, OptimizeRequest, OptimizeResponse, Role } from "../lib/api";
-import { DEFAULT_FORM, Form, applySuggestion, describe, fromRequest, toRequest } from "../lib/builder";
+import { DEFAULT_FORM, Form, applySuggestion, describe, formFromInterpretation, fromRequest, toRequest } from "../lib/builder";
+import AssistantBox from "../components/AssistantBox";
+import ScopeChips from "../components/ScopeChips";
 import { eur, ROLE_NAMES } from "../lib/format";
 import { FORMATIONS } from "../lib/formations";
 import ResultView from "../components/ResultView";
@@ -19,6 +21,13 @@ function Field({ id, label, error, hint, children }: { id: string; label: string
       {error && <p id={`${id}-error`} className="mt-1 text-xs font-medium text-signal">{error}</p>}
     </div>
   );
+}
+
+// the field to put the cursor in for each kind of problem (default: the field with the same id)
+const FIELD_FOR: Record<string, string> = {};
+function focusFirst(errors: Record<string, string>) {
+  const first = Object.keys(errors)[0];
+  if (first) document.getElementById(FIELD_FOR[first] ?? first)?.focus();
 }
 
 export default function Builder() {
@@ -41,7 +50,7 @@ export default function Builder() {
   async function run(f: Form) {
     const { req, errors } = toRequest(f);
     setErrors(errors);
-    if (!req) return;
+    if (!req) { focusFirst(errors); return; }
     setLoading(true);
     setFailure(null);
     try {
@@ -80,6 +89,10 @@ export default function Builder() {
           <h1 className="condensed text-4xl font-bold leading-tight">Squad builder</h1>
           <p className="mt-1 text-ink-soft">The best team the budget can buy, from players with enough league minutes to judge.</p>
         </div>
+
+        <AssistantBox page="builder" placeholder="Describe it, e.g. two centre-backs and a striker, budget 5m"
+                      examples={["4-3-3 for 30m, players under 28", "a young winger under 4m", "голман и штопер, буџет 3м"]}
+                      onApply={(r) => { setForm((f) => formFromInterpretation(r, f)); setErrors({}); }} />
 
         <fieldset>
           <legend className="label">What are you building?</legend>
@@ -139,9 +152,11 @@ export default function Builder() {
           </fieldset>
         )}
 
-        <details className="group rounded-md border border-rule bg-surface-raised" open={!!(form.ageMin || form.ageMax || form.maxPrice || form.maxPerClub || form.includeLowMinutes || !form.recentForm)}>
+        <details className="group rounded-md border border-rule bg-surface-raised" open={!!(form.ageMin || form.ageMax || form.maxPrice || form.maxPerClub || form.includeLowMinutes || !form.recentForm || form.leagueIds.length || form.nationalities.length)}>
           <summary className="cursor-pointer px-3 py-2 font-semibold">Filters</summary>
           <div className="space-y-4 border-t border-rule px-3 py-4">
+            <ScopeChips leagueIds={form.leagueIds} nationalities={form.nationalities}
+                        onChange={(l, n) => setForm((f) => ({ ...f, leagueIds: l, nationalities: n }))} />
             <div className="grid grid-cols-2 gap-3">
               <Field id="ageMin" label="Youngest age" error={errors.ageMin}>
                 <input id="ageMin" className="field num" inputMode="numeric" value={form.ageMin} placeholder="Any"
@@ -173,6 +188,11 @@ export default function Builder() {
           </div>
         </details>
 
+        {Object.keys(errors).length > 0 && (
+          <p role="alert" className="rounded-md bg-signal-soft px-3 py-2 text-sm text-signal">
+            {Object.values(errors).join(" ")}
+          </p>
+        )}
         <button type="submit" className="btn-primary w-full py-3 text-lg" disabled={loading}>
           {loading ? "Finding the best team…" : "Find the best team"}
         </button>

@@ -12,7 +12,8 @@ describe("toImproveRequest", () => {
   it("sends only ticked players and locks only squad players", () => {
     const { req } = toImproveRequest(DEFAULT_IMPROVE, squad, new Set([1, 3]), new Set([1, 2]));
     expect(req).toMatchObject({ formation: "4-3-3", budget_eur: 5_000_000, owned_player_ids: [1, 3],
-      locked_player_ids: [1], left_player_ids: [2], max_signings: 2, signing_roles: [], min_minutes_next: 900 });
+      locked_player_ids: [1], left_player_ids: [2], max_signings: 2, signing_roles: [], min_minutes_next: 900,
+      league_ids: [], nationalities: [] });
   });
   it("accepts a zero budget to show the current XI", () => {
     expect(toImproveRequest({ ...DEFAULT_IMPROVE, budget: "0" }, squad, new Set([1]), new Set()).req?.budget_eur).toBe(0);
@@ -34,7 +35,7 @@ describe("applyImproveSuggestion", () => {
     expect(applyImproveSuggestion({ ...DEFAULT_IMPROVE, signingRoles: ["ST"] }, "allow signings in any position", null)?.signingRoles).toEqual([]);
   });
   it("ignores changes the form cannot make", () => {
-    expect(applyImproveSuggestion(DEFAULT_IMPROVE, "search all supported leagues", null)).toBeNull();
+    expect(applyImproveSuggestion(DEFAULT_IMPROVE, "use a different scoring model", null)).toBeNull();
   });
 });
 
