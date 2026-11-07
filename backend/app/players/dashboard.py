@@ -102,6 +102,19 @@ def dashboard(db: Session, max_age: int | None = None) -> dict:
     if model is not None:
         adj = db.scalar(select(LeagueAdjustment).where(LeagueAdjustment.model_id == model.id,
                                                        LeagueAdjustment.season == service.SCORED_SEASON))
+    # league strength for the scored season, from the source the adjustment uses (UEFA first if none yet)
+    from app.scoring.league_adjust import STRENGTH, season_strength
+    source = ((adj.details if adj else None) or {}).get("strength")
+    strength, strength_source = {}, None
+    for src in ([source] if source else ["uefa", "clubelo"]):
+        method = STRENGTH[src]["method"] if src == "uefa" else None
+        found = season_strength(db, [service.SCORED_SEASON], method)
+        if found:
+            strength = {lid: v for (lid, _), v in found.items()}
+            strength_source = {"uefa": "UEFA season points", "clubelo": "mean ClubElo"}[src]
+            break
+    for lr in league_rows:
+        lr["strength"] = round(strength[lr["id"]], 2) if lr["id"] in strength else None
     trusted = [r for r in rows if r.league_id in complete_ids
                and (max_age is None or (r.age is not None and r.age <= max_age))]
     picks = value_picks(trusted)
@@ -122,6 +135,7 @@ def dashboard(db: Session, max_age: int | None = None) -> dict:
         },
         "leagues": league_rows,
         "imports": imports,
+        "strength_source": strength_source,
         "model": {
             "version": M.VERSION if model else None,
             "league_adjustment": None if adj is None else {

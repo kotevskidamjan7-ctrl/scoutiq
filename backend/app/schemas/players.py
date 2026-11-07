@@ -178,6 +178,7 @@ class DashboardLeague(BaseModel):
     regulars: int
     median_value_eur: int | None
     roles: dict[str, int]
+    strength: float | None = None
 
 
 class DashboardImport(BaseModel):
@@ -206,6 +207,7 @@ class DashboardOut(BaseModel):
     recent_season: int
     totals: DashboardTotals
     leagues: list[DashboardLeague]
+    strength_source: str | None = None
     imports: list[DashboardImport]
     model: ModelStatus
     value_picks: dict[str, list[PlayerRowOut]]

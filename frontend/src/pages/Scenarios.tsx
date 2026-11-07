@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api, ApiError, ScenarioSummary } from "../lib/api";
 import { eur } from "../lib/format";
+import PageHeader from "../components/PageHeader";
 
 export default function Scenarios() {
   const [rows, setRows] = useState<ScenarioSummary[] | null>(null);
@@ -25,19 +26,19 @@ export default function Scenarios() {
   }
 
   return (
-    <div className="max-w-4xl">
-      <h1 className="condensed text-4xl font-bold">Saved scenarios</h1>
+    <div className="space-y-6">
+      <PageHeader title="Saved scenarios" subtitle="Teams you found and saved, ready to reopen or compare." />
       {error && <p role="alert" className="mt-4 rounded-md bg-signal-soft px-3 py-2 text-signal">{error}</p>}
       {rows === null && !error && <p className="mt-6 text-ink-soft">Loading…</p>}
       {rows?.length === 0 && (
-        <div className="mt-6 rounded-lg border border-dashed border-rule p-6">
+        <div className="sheet max-w-2xl">
           <p className="font-semibold">No saved scenarios yet.</p>
           <p className="mt-1 text-ink-soft">Find a team in the squad builder, then save it to compare it here later.</p>
           <Link to="/builder" className="btn-primary mt-4">Open the squad builder</Link>
         </div>
       )}
       {rows && rows.length > 0 && (
-        <ul className="mt-6 divide-y divide-rule border-y border-rule">
+        <ul className="sheet divide-y divide-rule py-1">
           {rows.map((s) => (
             <li key={s.id} className="flex flex-wrap items-center gap-x-6 gap-y-2 py-3">
               <Link to={`/scenarios/${s.id}`} className="min-w-[14rem] flex-1">

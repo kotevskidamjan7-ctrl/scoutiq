@@ -95,3 +95,18 @@ def test_dashboard_age_limit(seeded):  # noqa: F811
     assert d["max_age"] == 20
     assert all(r["age"] <= 20 for lists in d["budget_picks"].values() for rs in lists.values() for r in rs)
     assert c.get("/api/v1/stats/dashboard", params={"max_age": 99}).status_code == 422
+
+
+def test_dashboard_shows_league_strength(seeded):  # noqa: F811
+    c, players, league = seeded
+    from datetime import date
+    from app.db.session import get_db
+    from app.main import app as the_app
+    from app.models import LeagueStrength
+    db = the_app.dependency_overrides[get_db]()
+    assert c.get("/api/v1/stats/dashboard").json()["strength_source"] is None
+    db.add(LeagueStrength(league_id=league.id, as_of_date=date(2025, 5, 31), mean_club_elo=29.464, method="uefa_season_points"))
+    db.flush()
+    d = c.get("/api/v1/stats/dashboard").json()
+    assert d["strength_source"] == "UEFA season points"
+    assert next(lg for lg in d["leagues"] if lg["id"] == league.id)["strength"] == 29.46

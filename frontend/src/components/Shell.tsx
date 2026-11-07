@@ -33,8 +33,10 @@ export default function Shell() {
           </button>
         </div>
       </header>
-      <main className="min-w-0 px-4 py-6 sm:px-6 lg:px-8">
-        <Outlet />
+      <main className="min-w-0 px-4 py-5 sm:px-6 lg:px-8 lg:py-7">
+        <div className="mx-auto w-full max-w-[1640px]">
+          <Outlet />
+        </div>
       </main>
     </div>
   );

@@ -10,6 +10,7 @@ import { eur, ROLE_NAMES } from "../lib/format";
 import { FORMATIONS } from "../lib/formations";
 import ResultView from "../components/ResultView";
 import Toast from "../components/Toast";
+import PageHeader from "../components/PageHeader";
 
 const ROLES: Role[] = ["GK", "CB", "FB", "CM", "AW", "ST"];
 
@@ -86,12 +87,11 @@ export default function Builder() {
   const totalNeeds = Object.values(form.needs).reduce((a, b) => a + b, 0);
 
   return (
-    <div className="grid gap-8 xl:grid-cols-[22rem_1fr]">
-      <form onSubmit={submit} noValidate className="space-y-6" aria-label="Team requirements">
-        <div>
-          <h1 className="condensed text-4xl font-bold leading-tight">Squad builder</h1>
-          <p className="mt-1 text-ink-soft">The best team the budget can buy, from players with enough league minutes to judge.</p>
-        </div>
+    <div className="space-y-6">
+    <PageHeader title="Squad builder"
+                subtitle="The best team the budget can buy, from players with enough league minutes to judge." />
+    <div className="grid items-start gap-6 xl:grid-cols-[24rem_1fr]">
+      <form onSubmit={submit} noValidate className="sheet space-y-6" aria-label="Team requirements">
 
         <AssistantBox page="builder" placeholder="Describe it, e.g. two centre-backs and a striker, budget 5m"
                       examples={["4-3-3 for 30m, players under 28", "a young winger under 4m", "голман и штопер, буџет 3м"]}
@@ -261,6 +261,7 @@ export default function Builder() {
         )}
       </section>
       <Toast text={toast} onDone={clearToast} />
+    </div>
     </div>
   );
 }

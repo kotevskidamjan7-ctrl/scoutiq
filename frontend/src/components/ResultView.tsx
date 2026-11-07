@@ -47,6 +47,9 @@ export default function ResultView({ result, formation, loading, emptyText }: Pr
         </div>
       )}
 
+      {/* wide screens: board and totals on the left, details and the table on the right */}
+      <div className="grid items-start gap-6 min-[1700px]:grid-cols-[minmax(0,430px)_minmax(0,1fr)]">
+      <div className="space-y-4">
       <div className={loading ? "opacity-60 transition-opacity" : "transition-opacity"}>
         <TacticsBoard
           team={team}
@@ -59,7 +62,6 @@ export default function ResultView({ result, formation, loading, emptyText }: Pr
       </div>
 
       {team && result && (
-        <>
           <div className="mx-auto max-w-[520px]">
             <div className="flex items-baseline justify-between gap-4">
               <p>
@@ -84,16 +86,24 @@ export default function ResultView({ result, formation, loading, emptyText }: Pr
               </p>
             )}
           </div>
+      )}
+      </div>
+
+      {team && result && (
+        <div className="min-w-0 space-y-4">
           {selected && <PlayerDetail p={selected} onClose={() => setSelected(null)} />}
-          <TeamTable players={team.players} selectedId={selected?.player_id} onSelect={select}
-                     bestIds={i > 0 ? bestIds : undefined} />
+          <div className="sheet p-3 sm:p-4">
+            <TeamTable players={team.players} selectedId={selected?.player_id} onSelect={select}
+                       bestIds={i > 0 ? bestIds : undefined} />
+          </div>
           {result.notes.length > 0 && (
             <ul className="space-y-1 text-sm text-ink-soft">
               {result.notes.map((n) => <li key={n}>{n}</li>)}
             </ul>
           )}
-        </>
+        </div>
       )}
+      </div>
     </div>
   );
 }

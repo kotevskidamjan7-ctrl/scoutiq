@@ -5,6 +5,8 @@ import { Link, useSearchParams } from "react-router-dom";
 import { api, ApiError, Comparison } from "../lib/api";
 import { useCompare } from "../lib/compare";
 import { eur, metricValue, num, ROLE_NAMES, signed } from "../lib/format";
+import PageHeader from "../components/PageHeader";
+import PositionPitch from "../components/PositionPitch";
 
 // Validated categorical order (adjacent CVD and normal-vision checks pass on white); text never uses these.
 const SERIES = ["#2a78d6", "#eb6834", "#1baf7a", "#6250d6"];
@@ -24,9 +26,9 @@ export default function Compare() {
   }, [key]);
 
   if (ids.length < 2) return (
-    <div className="max-w-2xl">
-      <h1 className="condensed text-4xl font-bold">Compare players</h1>
-      <div className="mt-6 rounded-lg border border-dashed border-rule p-6">
+    <div className="space-y-6">
+      <PageHeader title="Compare players" subtitle="Two to four players side by side." />
+      <div className="sheet max-w-2xl">
         <p className="font-semibold">{ids.length === 1 ? "Pick one more player." : "No players picked yet."}</p>
         <p className="mt-1 text-ink-soft">Tick “Compare” next to 2 to 4 players in the player list, or use “Add to comparison” on a profile.</p>
         <Link to="/players" className="btn-primary mt-4">Open the player list</Link>
@@ -54,42 +56,54 @@ export default function Compare() {
   const metricKeys = data.same_role && s[0] ? s[0].metrics.map((m) => m.key) : [];
 
   return (
-    <div className="max-w-6xl space-y-8">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <h1 className="condensed text-4xl font-bold">Compare players</h1>
-        {!sp.getAll("ids").length && <button type="button" className="btn-quiet text-sm" onClick={compare.clear}>Clear comparison</button>}
-      </div>
+    <div className="space-y-6">
+      <PageHeader title="Compare players" subtitle="Two to four players side by side."
+                  actions={!sp.getAll("ids").length
+                    ? <button type="button" className="btn-quiet text-sm" onClick={compare.clear}>Clear comparison</button> : undefined} />
 
+      <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="sheet min-w-0">
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[640px] border-collapse text-sm">
-          <thead>
-            <tr className="border-b border-rule text-left">
-              <th scope="col" className="w-48 py-2 pr-3 font-medium text-ink-soft"><span className="sr-only">Statistic</span></th>
-              {ps.map((p, i) => (
-                <th key={p.id} scope="col" className="py-2 pr-3 align-bottom">
-                  <span className="mb-1 block h-1.5 w-8 rounded-full" style={{ background: SERIES[i] }} aria-hidden="true" />
-                  <Link to={`/players/${p.id}`} className="condensed text-xl font-bold underline-offset-4 hover:underline">{p.name}</Link>
-                  {!sp.getAll("ids").length && (
-                    <button type="button" className="block text-xs font-normal text-ink-faint underline-offset-2 hover:underline"
-                            onClick={() => compare.toggle({ id: p.id, name: p.name, role: s[i]?.role ?? "" })}>Remove</button>
-                  )}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map(([label, f]) => (
-              <tr key={label} className="border-b border-rule/70">
-                <th scope="row" className="py-2 pr-3 text-left font-normal text-ink-soft">{label}</th>
-                {ps.map((p, i) => <td key={p.id} className="num py-2 pr-3">{f(i)}</td>)}
-              </tr>
-            ))}
-          </tbody>
-        </table>
+            <table className="w-full min-w-[640px] border-collapse text-sm">
+              <thead>
+                <tr className="border-b border-rule text-left">
+                  <th scope="col" className="w-48 py-2 pr-3 font-medium text-ink-soft"><span className="sr-only">Statistic</span></th>
+                  {ps.map((p, i) => (
+                    <th key={p.id} scope="col" className="py-2 pr-3 align-bottom">
+                      <span className="mb-1 block h-1.5 w-8 rounded-full" style={{ background: SERIES[i] }} aria-hidden="true" />
+                      <Link to={`/players/${p.id}`} className="condensed text-xl font-bold underline-offset-4 hover:underline">{p.name}</Link>
+                      {!sp.getAll("ids").length && (
+                        <button type="button" className="block text-xs font-normal text-ink-faint underline-offset-2 hover:underline"
+                                onClick={() => compare.toggle({ id: p.id, name: p.name, role: s[i]?.role ?? "" })}>Remove</button>
+                      )}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map(([label, f]) => (
+                  <tr key={label} className="border-b border-rule/70">
+                    <th scope="row" className="py-2 pr-3 text-left font-normal text-ink-soft">{label}</th>
+                    {ps.map((p, i) => <td key={p.id} className="num py-2 pr-3">{f(i)}</td>)}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <aside className="sheet" aria-label="Positions">
+          <h2 className="condensed text-2xl font-bold">Where they play</h2>
+          <div className="mx-auto mt-3 max-w-[260px]">
+            <PositionPitch title="Positions of the compared players"
+                           markers={ps.map((p, i) => ({ key: p.id, position: p.primary_position, role: s[i]?.role ?? null,
+                             label: s[i] ? String(Math.round(s[i]!.score)) : "–", caption: p.name.split(" ").slice(-1)[0], color: SERIES[i] }))} />
+          </div>
+          <p className="mt-2 text-xs text-ink-faint">Each marker shows the player's 2024/25 score, in his colour from the table.</p>
+        </aside>
       </div>
 
       {data.same_role ? (
-        <section aria-labelledby="metrics-title">
+        <section aria-labelledby="metrics-title" className="sheet">
           <h2 id="metrics-title" className="condensed text-2xl font-bold">Score breakdown</h2>
           <p className="mt-1 text-sm text-ink-soft">
             Percentile against regular {ROLE_NAMES[s[0]!.role].toLowerCase()}s in each player's own league, 2024/25. Raw values in brackets.
@@ -132,7 +146,7 @@ export default function Compare() {
           </div>
         </section>
       ) : (
-        <p className="rounded-md bg-surface-sunk p-4 text-sm">
+        <p className="sheet text-sm">
           These players have different roles, so their score breakdowns use different statistics and are not shown side by side.
           Each score still says how a player ranks among regulars in his own role and league.
         </p>

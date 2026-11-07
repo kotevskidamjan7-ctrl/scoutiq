@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 @layer base {
-  html { font-family: "Archivo", system-ui, sans-serif; color: #1C2A30; background: #F3F5F4; }
+  html { font-family: "Archivo", system-ui, sans-serif; color: #1C2A30; background: #E4EAE6; }
   body { margin: 0; min-height: 100vh; }
   /* numbers line up in tables and totals */
   .num { font-variant-numeric: tabular-nums; }
@@ -20,4 +20,6 @@
   .btn { @apply inline-flex items-center justify-center gap-2 rounded-md px-4 py-2 font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50; }
   .btn-primary { @apply btn bg-marker text-board hover:bg-[#E5B41F]; }
   .btn-quiet { @apply btn border border-rule bg-surface-raised text-ink hover:bg-surface-sunk; }
+  /* a white sheet on the felt background */
+  .sheet { @apply rounded-xl border border-rule/70 bg-surface-raised p-5 shadow-[0_1px_0_rgba(26,42,49,0.06)]; }
 }

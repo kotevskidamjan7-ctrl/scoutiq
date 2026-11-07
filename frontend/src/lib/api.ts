@@ -109,12 +109,14 @@ export interface Profile {
 export interface DashboardLeague {
   id: number; name: string; country: string; status: "complete" | "provisional" | "no_data";
   coverage: number; scored: number; regulars: number; median_value_eur: number | null; roles: Record<string, number>;
+  strength: number | null;
 }
 export interface Dashboard {
   season: number; recent_season: number; max_age: number | null;
   totals: { players_scored: number; regulars_scored: number; still_playing: number; leagues_complete: number;
     leagues_enabled: number; latest_valuation_date: string | null };
   leagues: DashboardLeague[];
+  strength_source: string | null;
   imports: { source: string; kind: string; status: string; finished_at: string | null; rows_written: number; requests_used: number }[];
   model: { version: string | null; league_adjustment: { accepted: boolean; reason: string; source?: string | null } | null };
   value_picks: Record<Role, PlayerRow[]>;

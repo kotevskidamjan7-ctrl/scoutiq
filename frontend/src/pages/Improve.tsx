@@ -9,6 +9,7 @@ import AssistantBox from "../components/AssistantBox";
 import ScopeChips from "../components/ScopeChips";
 import { AcrossLeaguesToggle, useAdjustment } from "../lib/adjustment";
 import TacticsBoard from "../components/TacticsBoard";
+import PageHeader from "../components/PageHeader";
 
 function Field({ id, label, error, hint, children }: { id: string; label: string; error?: string; hint?: string; children: ReactNode }) {
   return (
@@ -122,12 +123,11 @@ export default function Improve() {
   const roleFull = (role: string | null) => !!role && (lockedPerRole[role] ?? 0) >= (ROLE_COUNTS[form.formation]?.[role] ?? 0);
 
   return (
-    <div className="grid gap-8 xl:grid-cols-[24rem_1fr]">
-      <form onSubmit={submit} noValidate className="space-y-6" aria-label="Club and requirements">
-        <div>
-          <h1 className="condensed text-4xl font-bold leading-tight">Improve my club</h1>
-          <p className="mt-1 text-ink-soft">Start from your squad. Find the signings that improve your starting XI the most.</p>
-        </div>
+    <div className="space-y-6">
+    <PageHeader title="Improve my club"
+                subtitle="Start from your squad. Find the signings that improve your starting XI the most." />
+    <div className="grid items-start gap-6 xl:grid-cols-[26rem_1fr]">
+      <form onSubmit={submit} noValidate className="sheet space-y-6" aria-label="Club and requirements">
 
         <Finder<Club> id="club" label={club ? "Change club" : "Your club"} placeholder="For example Brentford"
                       search={api.clubs} onPick={pickClub}
@@ -410,6 +410,7 @@ export default function Improve() {
           </>
         )}
       </section>
+    </div>
     </div>
   );
 }

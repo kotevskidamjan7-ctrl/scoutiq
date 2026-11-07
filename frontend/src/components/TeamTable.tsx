@@ -7,7 +7,7 @@ interface Props { players: PlayerOut[]; selectedId?: number | null; onSelect?: (
 export default function TeamTable({ players, selectedId, onSelect, bestIds }: Props) {
   return (
     <div className="overflow-x-auto">
-      <table className="w-full min-w-[720px] border-collapse text-sm">
+      <table className="w-full min-w-[640px] border-collapse text-sm">
         <caption className="sr-only">Selected players</caption>
         <thead>
           <tr className="border-b border-rule text-left text-ink-soft">
@@ -17,8 +17,8 @@ export default function TeamTable({ players, selectedId, onSelect, bestIds }: Pr
             <th className="py-2 pr-3 text-right font-medium">Value</th>
             <th className="py-2 pr-3 text-right font-medium">Age</th>
             <th className="py-2 pr-3 font-medium">Club 2024/25</th>
-            <th className="py-2 pr-3 text-right font-medium">Minutes 24/25</th>
-            <th className="py-2 text-right font-medium">Minutes 25/26</th>
+            <th className="py-2 pr-3 text-right font-medium">Min. 24/25</th>
+            <th className="py-2 text-right font-medium">Min. 25/26</th>
           </tr>
         </thead>
         <tbody>

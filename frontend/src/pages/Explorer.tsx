@@ -4,9 +4,11 @@ import { Link, useSearchParams } from "react-router-dom";
 import { api, ApiError, League, PlayerPage, PlayerQuery, Role, SortKey } from "../lib/api";
 import { useCompare } from "../lib/compare";
 import AssistantBox from "../components/AssistantBox";
+import PlayerCard from "../components/PlayerCard";
 import { AcrossLeaguesToggle, useAdjustment } from "../lib/adjustment";
 import type { Interpretation } from "../lib/api";
 import { eur, moneyText, num, parseMoney, ROLE_NAMES, signed } from "../lib/format";
+import PageHeader from "../components/PageHeader";
 
 const ROLES: Role[] = ["GK", "CB", "FB", "CM", "AW", "ST"];
 const PAGE = 50;
@@ -48,6 +50,7 @@ export default function Explorer() {
   const [text, setText] = useState(sp.get("q") ?? "");
   const [price, setPrice] = useState(sp.get("max_price") ?? "");
   const [askKey, setAskKey] = useState(0);
+  const [previewId, setPreviewId] = useState<number | null>(null);
   const compare = useCompare();
   const adjustment = useAdjustment();
   const query = useMemo(() => toQuery(sp, !!adjustment?.active), [sp, adjustment]);
@@ -83,6 +86,11 @@ export default function Explorer() {
       .finally(() => { if (live) setLoading(false); });
     return () => { live = false; };
   }, [query, adjustment]);
+
+  useEffect(() => {
+    if (page?.items.length && !page.items.some((r) => r.player_id === previewId)) setPreviewId(page.items[0].player_id);
+  }, [page]);
+  const preview = page?.items.find((r) => r.player_id === previewId) ?? null;
 
   const toggleIn = (k: string, v: string) => {
     const cur = sp.getAll(k);
@@ -120,16 +128,13 @@ export default function Explorer() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="condensed text-4xl font-bold leading-tight">Players</h1>
-        <p className="mt-1 text-ink-soft">Every player with a 2024/25 score. Click a name for the full profile.</p>
-      </div>
+      <PageHeader title="Players" subtitle="Every player with a 2024/25 score. Click a name for the full profile." />
 
       <AssistantBox page="players" placeholder="Describe the player, e.g. a young left-back under €2m who still plays"
                     examples={["striker from Serie A under 25", "cheap experienced goalkeeper", "млад штопер до 3 милиони"]}
                     ignoredHere={ignoredHere} onApply={applyReading} />
 
-      <section aria-label="Filters" className="space-y-4" key={askKey}>
+      <section aria-label="Filters" className="sheet space-y-4" key={askKey}>
         <div className="flex flex-wrap items-end gap-4">
           <div className="w-full max-w-xs">
             <label htmlFor="q" className="label">Name</label>
@@ -195,7 +200,8 @@ export default function Explorer() {
       {error && <p role="alert" className="rounded-md bg-signal-soft px-3 py-2 text-signal">{error}</p>}
 
       {page && (
-        <section aria-label="Players" className={loading ? "opacity-60" : ""}>
+      <div className={`grid items-start gap-6 ${preview ? "min-[1500px]:grid-cols-[minmax(0,1fr)_380px]" : ""}`}>
+        <section aria-label="Players" className={`sheet min-w-0 ${loading ? "opacity-60" : ""}`}>
           <p className="mb-2 text-sm text-ink-soft" aria-live="polite">
             {page.total === 0 ? "No players match these filters." :
               `${num(page.total)} players. Showing ${offset + 1}–${Math.min(offset + PAGE, page.total)}.`}
@@ -221,9 +227,11 @@ export default function Explorer() {
                 </thead>
                 <tbody>
                   {page.items.map((p) => (
-                    <tr key={p.player_id} className="border-b border-rule/70 hover:bg-surface-sunk">
+                    <tr key={p.player_id} onClick={() => setPreviewId(p.player_id)}
+                        className={`cursor-pointer border-b border-rule/70 hover:bg-surface-sunk ${p.player_id === previewId ? "min-[1500px]:bg-marker/15" : ""}`}>
                       <td className="py-2 pr-3">
-                        <Link to={`/players/${p.player_id}`} className="font-semibold underline-offset-4 hover:underline">{p.name}</Link>
+                        <Link to={`/players/${p.player_id}`} onClick={(e) => e.stopPropagation()}
+                              className="font-semibold underline-offset-4 hover:underline">{p.name}</Link>
                         <span className="block text-xs text-ink-faint">{ROLE_NAMES[p.role]}{p.nationality && `, ${p.nationality}`}</span>
                       </td>
                       <td className="py-2 pr-3">{p.club}<span className="block text-xs text-ink-faint">{p.league}</span></td>
@@ -258,6 +266,12 @@ export default function Explorer() {
             Blank where price explains too little of the score to say.
           </p>
         </section>
+        {preview && (
+          <aside className="hidden min-[1500px]:sticky min-[1500px]:top-6 min-[1500px]:block" aria-label="Player preview">
+            <PlayerCard id={preview.player_id} shownScore={preview.score} onClose={() => setPreviewId(-1)} />
+          </aside>
+        )}
+      </div>
       )}
     </div>
   );
