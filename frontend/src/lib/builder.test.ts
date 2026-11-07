@@ -5,7 +5,8 @@ suite("toRequest", () => {
   it("builds a starting XI request with the default filters", () => {
     const { req, errors } = toRequest(DEFAULT_FORM);
     expect(errors).toEqual({});
-    expect(req).toMatchObject({ budget_eur: 15_000_000, formation: "4-3-3", min_minutes: 900, min_minutes_next: 900 });
+    expect(req).toMatchObject({ budget_eur: 15_000_000, formation: "4-3-3", min_minutes: 900, min_minutes_next: 900,
+      score: "adjusted" });
     expect(req?.needs).toBeUndefined();
   });
   it("sends only the positions asked for in signings mode", () => {

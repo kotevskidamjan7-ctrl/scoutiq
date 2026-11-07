@@ -7,6 +7,7 @@ import { FORMATIONS } from "../lib/formations";
 import { applyImproveSuggestion, DEFAULT_IMPROVE, ImproveForm, improveFromInterpretation, replacements, ROLE_COUNTS, toImproveRequest } from "../lib/improve";
 import AssistantBox from "../components/AssistantBox";
 import ScopeChips from "../components/ScopeChips";
+import { AcrossLeaguesToggle, useAdjustment } from "../lib/adjustment";
 import TacticsBoard from "../components/TacticsBoard";
 
 function Field({ id, label, error, hint, children }: { id: string; label: string; error?: string; hint?: string; children: ReactNode }) {
@@ -76,6 +77,7 @@ export default function Improve() {
   const [tab, setTab] = useState(0);
 
   const set = <K extends keyof ImproveForm>(k: K, v: ImproveForm[K]) => setForm((f) => ({ ...f, [k]: v }));
+  const adjustment = useAdjustment();
   const toggle = (s: Set<number>, id: number) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; };
 
   async function pickClub(c: Club) {
@@ -95,9 +97,10 @@ export default function Improve() {
   }
 
   async function run(f: ImproveForm, lockedNow: Set<number> = locked) {
-    const { req, errors } = toImproveRequest(f, squad, inSquad, lockedNow);
+    const { req: base, errors } = toImproveRequest(f, squad, inSquad, lockedNow);
     setErrors(errors);
-    if (!req) { focusFirst(errors); return; }
+    if (!base) { focusFirst(errors); return; }
+    const req = { ...base, score: adjustment?.active && f.adjusted ? "adjusted" as const : "within" as const };
     setLoading(true); setFailure(null);
     try { setResult(await api.improve(req)); setLastReq(req); setTab(0); }
     catch (e) { setFailure(e instanceof ApiError ? e.message : "Something went wrong while finding signings."); }
@@ -235,6 +238,8 @@ export default function Improve() {
             </div>
           </div>
         </div>
+
+        <AcrossLeaguesToggle checked={form.adjusted} onChange={(v) => set("adjusted", v)} status={adjustment} />
 
         <details className="rounded-md border border-rule bg-surface-raised" open={!!(form.ageMin || form.ageMax || form.maxPrice || form.includeLowMinutes || !form.recentForm || form.leagueIds.length || form.nationalities.length)}>
           <summary className="cursor-pointer px-3 py-2 font-semibold">Filters for signings</summary>

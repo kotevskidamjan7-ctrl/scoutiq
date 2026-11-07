@@ -112,6 +112,15 @@ def all_rows(db: Session, today: date | None = None) -> list[Row]:
 SORT_KEYS = {"score", "price_eur", "value_for_money", "age", "minutes", "minutes_next", "name"}
 
 
+def with_score(rows: list[Row], score: str) -> list[Row]:
+    """score='adjusted': use the league-adjusted score, leaving out players who have none (their league has
+    no calibrated strength yet), so that every compared number means the same thing."""
+    if score != "adjusted":
+        return rows
+    from dataclasses import replace
+    return [replace(r, score=r.score_adjusted) for r in rows if r.score_adjusted is not None]
+
+
 def search(rows: list[Row], *, q: str | None = None, roles: list[str] | None = None, league_ids: list[int] | None = None,
            age_min: int | None = None, age_max: int | None = None, max_price: int | None = None,
            min_minutes: int = 900, min_minutes_next: int = 0, sort: str = "score", descending: bool = True,

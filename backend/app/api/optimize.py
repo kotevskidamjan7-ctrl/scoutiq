@@ -57,6 +57,9 @@ def run_optimization(body: OptimizeRequest, db: Session) -> OptimizeResponse:
              "Scores are from the 2024/25 season; clubs shown are the 2024/25 clubs."]
     if body.min_minutes_next:
         notes.append(f"Only players with at least {body.min_minutes_next} league minutes in 2025/26 were considered.")
+    if body.score == "adjusted":
+        notes.append("Scores are league-adjusted, so players from different leagues are compared on one scale. "
+                     "Leagues without an adjusted score were left out.")
     if sol.team and body.score == "within" and len({p.league_id for p in sol.team.players}) > 1:
         notes.append("Within-league scores are compared across leagues; no league-strength adjustment was applied.")
 

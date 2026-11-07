@@ -17,6 +17,7 @@ export interface Form {
   recentForm: boolean;          // min_minutes_next 900 instead of 0
   leagueIds: number[];          // empty = all leagues
   nationalities: string[];      // empty = any nationality
+  adjusted: boolean;            // compare across leagues with league-adjusted scores
 }
 
 export const EMPTY_NEEDS: Record<Role, number> = { GK: 0, CB: 0, FB: 0, CM: 0, AW: 0, ST: 0 };
@@ -24,7 +25,7 @@ export const EMPTY_NEEDS: Record<Role, number> = { GK: 0, CB: 0, FB: 0, CM: 0, A
 export const DEFAULT_FORM: Form = {
   mode: "xi", budget: "15m", formation: "4-3-3", needs: { ...EMPTY_NEEDS, ST: 1, CM: 1, CB: 1 },
   ageMin: "", ageMax: "", maxPrice: "", maxPerClub: "", includeLowMinutes: false, recentForm: true,
-  leagueIds: [], nationalities: [],
+  leagueIds: [], nationalities: [], adjusted: true,
 };
 
 const int = (s: string) => (s.trim() === "" ? null : Number.parseInt(s, 10));
@@ -53,6 +54,7 @@ export function toRequest(f: Form): { req: OptimizeRequest | null; errors: Recor
     min_minutes: f.includeLowMinutes ? 450 : 900,
     min_minutes_next: f.recentForm ? 900 : 0,
     league_ids: f.leagueIds, nationalities: f.nationalities,
+    score: f.adjusted ? "adjusted" : "within",
     alternatives: 2,
   };
   if (f.mode === "xi") req.formation = f.formation;
@@ -74,6 +76,7 @@ export function fromRequest(r: OptimizeRequest): Form {
     includeLowMinutes: (r.min_minutes ?? 900) < 900,
     recentForm: (r.min_minutes_next ?? 900) > 0,
     leagueIds: r.league_ids ?? [], nationalities: r.nationalities ?? [],
+    adjusted: r.score === "adjusted",
   };
 }
 
@@ -114,6 +117,6 @@ export function formFromInterpretation(r: Interpretation, current: Form): Form {
     maxPrice: f.max_price_eur ? money(f.max_price_eur) : "",
     includeLowMinutes: !!f.include_low_minutes,
     recentForm: f.still_playing ?? DEFAULT_FORM.recentForm,
-    leagueIds: r.league_ids, nationalities: f.nationalities,
+    leagueIds: r.league_ids, nationalities: f.nationalities, adjusted: current.adjusted,
   };
 }

@@ -93,8 +93,11 @@ def improve(body: ImproveRequest, db: Session = Depends(get_db)) -> ImproveRespo
     notes = ["Your players count as free. Each starts only if no affordable signing is better.",
              "Scores are from 2024/25; the squad is taken from the latest season data and may be out of date.",
              "Market values are Transfermarkt estimates (up to June 2026), not transfer fees or proof of availability."]
+    if body.score == "adjusted":
+        notes.append("Scores are league-adjusted, so your players and signings from other leagues are compared on one scale.")
     if unscored:
-        notes.append(f"{len(unscored)} squad player(s) have no 2024/25 score in the supported leagues and were left out.")
+        what = "league-adjusted score" if body.score == "adjusted" else "2024/25 score in the supported leagues"
+        notes.append(f"{len(unscored)} squad player(s) have no {what} and were left out.")
     if missing:
         notes.append("Your current squad cannot fill this formation on its own, so the comparison with your current XI is not shown.")
 

@@ -75,6 +75,7 @@ export interface PlayerPage { total: number; limit: number; offset: number; item
 
 export type SortKey = "score" | "price_eur" | "value_for_money" | "age" | "minutes" | "minutes_next" | "name";
 export interface PlayerQuery {
+  score?: "within" | "adjusted";
   q?: string; role?: Role[]; league_id?: number[]; age_min?: number; age_max?: number; max_price_eur?: number;
   min_minutes?: number; min_minutes_next?: number; sort?: SortKey; order?: "asc" | "desc"; limit?: number; offset?: number;
 }
@@ -131,7 +132,7 @@ export interface Squad { club: Club; players: SquadPlayer[]; }
 export interface ImproveRequest {
   formation: string; budget_eur: number; owned_player_ids: number[]; locked_player_ids?: number[]; left_player_ids?: number[];
   max_signings?: number; signing_roles?: Role[]; nationalities?: string[]; league_ids?: number[]; age_min?: number | null; age_max?: number | null; max_price_eur?: number | null;
-  min_minutes?: number; min_minutes_next?: number; alternatives?: number;
+  min_minutes?: number; min_minutes_next?: number; alternatives?: number; score?: "within" | "adjusted";
 }
 export interface ImprovePlayer extends PlayerOut { signing: boolean; }
 export interface ImproveTeam { total_score: number; cost_eur: number; players: ImprovePlayer[]; }
@@ -220,6 +221,7 @@ export const api = {
   leagues: () => request<League[]>("/leagues"),
   players: (q: PlayerQuery) => request<PlayerPage>(`/players${query({ ...q })}`),
   player: (id: number) => request<Profile>(`/players/${id}`),
+  adjustment: () => request<{ active: boolean; source: string | null; reason: string | null }>("/stats/adjustment"),
   dashboard: (maxAge?: number | null) => request<Dashboard>(`/stats/dashboard${query({ max_age: maxAge ?? undefined })}`),
   clubs: (q: string) => request<Club[]>(`/clubs${query({ q })}`),
   squad: (clubId: number) => request<Squad>(`/clubs/${clubId}/squad`),

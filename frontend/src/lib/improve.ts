@@ -23,11 +23,12 @@ export interface ImproveForm {
   includeLowMinutes: boolean;
   leagueIds: number[];
   nationalities: string[];
+  adjusted: boolean;
 }
 
 export const DEFAULT_IMPROVE: ImproveForm = {
   formation: "4-3-3", budget: "5m", maxSignings: 2, signingRoles: [], ageMin: "", ageMax: "", maxPrice: "",
-  recentForm: true, includeLowMinutes: false, leagueIds: [], nationalities: [],
+  recentForm: true, includeLowMinutes: false, leagueIds: [], nationalities: [], adjusted: true,
 };
 
 const int = (s: string) => (s.trim() === "" ? null : Number.parseInt(s, 10));
@@ -56,7 +57,7 @@ export function toImproveRequest(f: ImproveForm, squad: SquadPlayer[], inSquad: 
       signing_roles: f.signingRoles,
       age_min: ageMin, age_max: ageMax, max_price_eur: maxPrice,
       min_minutes: f.includeLowMinutes ? 450 : 900, min_minutes_next: f.recentForm ? 900 : 0, alternatives: 2,
-      league_ids: f.leagueIds, nationalities: f.nationalities,
+      league_ids: f.leagueIds, nationalities: f.nationalities, score: f.adjusted ? "adjusted" : "within",
     },
   };
 }
@@ -110,6 +111,6 @@ export function improveFromInterpretation(r: Interpretation, current: ImproveFor
     maxPrice: f.max_price_eur ? money(f.max_price_eur) : "",
     recentForm: f.still_playing ?? DEFAULT_IMPROVE.recentForm,
     includeLowMinutes: !!f.include_low_minutes,
-    leagueIds: r.league_ids, nationalities: f.nationalities,
+    leagueIds: r.league_ids, nationalities: f.nationalities, adjusted: current.adjusted,
   };
 }

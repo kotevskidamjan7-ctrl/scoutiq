@@ -5,6 +5,7 @@ import { api, ApiError, OptimizeRequest, OptimizeResponse, Role } from "../lib/a
 import { DEFAULT_FORM, Form, applySuggestion, describe, formFromInterpretation, fromRequest, toRequest } from "../lib/builder";
 import AssistantBox from "../components/AssistantBox";
 import ScopeChips from "../components/ScopeChips";
+import { AcrossLeaguesToggle, useAdjustment } from "../lib/adjustment";
 import { eur, ROLE_NAMES } from "../lib/format";
 import { FORMATIONS } from "../lib/formations";
 import ResultView from "../components/ResultView";
@@ -45,12 +46,14 @@ export default function Builder() {
   const clearToast = useCallback(() => setToast(null), []);
 
   const set = <K extends keyof Form>(k: K, v: Form[K]) => setForm((f) => ({ ...f, [k]: v }));
+  const adjustment = useAdjustment();
   const setNeed = (r: Role, n: number) => setForm((f) => ({ ...f, needs: { ...f.needs, [r]: Math.max(0, Math.min(11, n)) } }));
 
   async function run(f: Form) {
-    const { req, errors } = toRequest(f);
+    const { req: base, errors } = toRequest(f);
     setErrors(errors);
-    if (!req) { focusFirst(errors); return; }
+    if (!base) { focusFirst(errors); return; }
+    const req = { ...base, score: adjustment?.active && f.adjusted ? "adjusted" as const : "within" as const };
     setLoading(true);
     setFailure(null);
     try {
@@ -151,6 +154,8 @@ export default function Builder() {
             {errors.needs && <p id="needs-error" className="mt-1 text-xs font-medium text-signal">{errors.needs}</p>}
           </fieldset>
         )}
+
+        <AcrossLeaguesToggle checked={form.adjusted} onChange={(v) => set("adjusted", v)} status={adjustment} />
 
         <details className="group rounded-md border border-rule bg-surface-raised" open={!!(form.ageMin || form.ageMax || form.maxPrice || form.maxPerClub || form.includeLowMinutes || !form.recentForm || form.leagueIds.length || form.nationalities.length)}>
           <summary className="cursor-pointer px-3 py-2 font-semibold">Filters</summary>

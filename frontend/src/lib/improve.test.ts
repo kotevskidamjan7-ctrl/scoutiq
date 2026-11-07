@@ -13,7 +13,7 @@ describe("toImproveRequest", () => {
     const { req } = toImproveRequest(DEFAULT_IMPROVE, squad, new Set([1, 3]), new Set([1, 2]));
     expect(req).toMatchObject({ formation: "4-3-3", budget_eur: 5_000_000, owned_player_ids: [1, 3],
       locked_player_ids: [1], left_player_ids: [2], max_signings: 2, signing_roles: [], min_minutes_next: 900,
-      league_ids: [], nationalities: [] });
+      league_ids: [], nationalities: [], score: "adjusted" });
   });
   it("accepts a zero budget to show the current XI", () => {
     expect(toImproveRequest({ ...DEFAULT_IMPROVE, budget: "0" }, squad, new Set([1]), new Set()).req?.budget_eur).toBe(0);

@@ -33,6 +33,8 @@ def search_players(
     min_minutes: int = Query(900, ge=450, le=4000, description="League minutes in 2024/25"),
     min_minutes_next: int = Query(0, ge=0, le=4000, description="League minutes in 2025/26; 0 = no filter"),
     sort: Sort = "score",
+    score: Literal["within", "adjusted"] = Query("within", description="'adjusted' compares across leagues; "
+                                                 "players without an adjusted score are left out"),
     order: Literal["desc", "asc"] = "desc",
     limit: int = Query(50, ge=1, le=100),
     offset: int = Query(0, ge=0),
@@ -42,7 +44,7 @@ def search_players(
     if age_min is not None and age_max is not None and age_min > age_max:
         raise HTTPException(status_code=422, detail="age_min is greater than age_max")
     total, items = service.search(
-        service.all_rows(db), q=q, roles=role, league_ids=league_id, age_min=age_min, age_max=age_max,
+        service.with_score(service.all_rows(db), score), q=q, roles=role, league_ids=league_id, age_min=age_min, age_max=age_max,
         max_price=max_price_eur, min_minutes=min_minutes, min_minutes_next=min_minutes_next,
         sort=sort, descending=order == "desc", limit=limit, offset=offset)
     return {"total": total, "limit": limit, "offset": offset, "items": [vars(r) for r in items]}
@@ -75,3 +77,15 @@ def get_dashboard(max_age: int | None = Query(None, ge=16, le=45, description="O
                   db: Session = Depends(get_db)) -> dict:
     """Coverage per league, data freshness, recent imports, model status and value-for-money picks."""
     return dashboard.dashboard(db, max_age)
+
+
+@router.get("/stats/adjustment")
+def adjustment_status(db: Session = Depends(get_db)) -> dict:
+    """Whether league-adjusted scores exist, so pages can offer 'Compare across leagues'."""
+    from sqlalchemy import select
+    from app.models import LeagueAdjustment
+    m = service._model(db)
+    adj = None if m is None else db.scalar(select(LeagueAdjustment).where(
+        LeagueAdjustment.model_id == m.id, LeagueAdjustment.season == service.SCORED_SEASON))
+    source = {"uefa": "UEFA association coefficients", "clubelo": "ClubElo"}.get(((adj.details if adj else None) or {}).get("strength", "clubelo"))
+    return {"active": bool(adj and adj.accepted), "source": source if adj else None, "reason": adj.reason if adj else None}

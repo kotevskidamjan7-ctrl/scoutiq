@@ -4,6 +4,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { api, ApiError, League, PlayerPage, PlayerQuery, Role, SortKey } from "../lib/api";
 import { useCompare } from "../lib/compare";
 import AssistantBox from "../components/AssistantBox";
+import { AcrossLeaguesToggle, useAdjustment } from "../lib/adjustment";
 import type { Interpretation } from "../lib/api";
 import { eur, moneyText, num, parseMoney, ROLE_NAMES, signed } from "../lib/format";
 
@@ -14,16 +15,17 @@ const COLUMNS: { key: SortKey | null; label: string; align?: "right" }[] = [
   { key: "name", label: "Player" },
   { key: null, label: "Club 2024/25" },
   { key: "age", label: "Age", align: "right" },
-  { key: "score", label: "Score", align: "right" },
+  { key: "score", label: "Score", align: "right" },  // relabelled below when adjusted
   { key: "price_eur", label: "Value", align: "right" },
   { key: "value_for_money", label: "Value for money", align: "right" },
   { key: "minutes", label: "Minutes 24/25", align: "right" },
   { key: "minutes_next", label: "Minutes 25/26", align: "right" },
 ];
 
-function toQuery(sp: URLSearchParams): PlayerQuery {
+function toQuery(sp: URLSearchParams, adjustedActive: boolean): PlayerQuery {
   const int = (k: string) => (sp.get(k) ? Number(sp.get(k)) : undefined);
   return {
+    score: adjustedActive && sp.get("within") !== "1" ? "adjusted" : "within",
     q: sp.get("q") ?? undefined,
     role: sp.getAll("role") as Role[],
     league_id: sp.getAll("league").map(Number),
@@ -47,7 +49,8 @@ export default function Explorer() {
   const [price, setPrice] = useState(sp.get("max_price") ?? "");
   const [askKey, setAskKey] = useState(0);
   const compare = useCompare();
-  const query = useMemo(() => toQuery(sp), [sp]);
+  const adjustment = useAdjustment();
+  const query = useMemo(() => toQuery(sp, !!adjustment?.active), [sp, adjustment]);
 
   const set = (changes: Record<string, string | string[] | null>, keepOffset = false) => {
     setSp((prev) => {
@@ -71,6 +74,7 @@ export default function Explorer() {
   }, [text]);
 
   useEffect(() => {
+    if (!adjustment) return; // wait until we know which score to use, to avoid a second search
     let live = true;
     setLoading(true);
     api.players(query)
@@ -78,7 +82,7 @@ export default function Explorer() {
       .catch((e) => { if (live) setError(e instanceof ApiError ? e.message : "Could not load players."); })
       .finally(() => { if (live) setLoading(false); });
     return () => { live = false; };
-  }, [query]);
+  }, [query, adjustment]);
 
   const toggleIn = (k: string, v: string) => {
     const cur = sp.getAll(k);
@@ -162,6 +166,8 @@ export default function Explorer() {
           </div>
         </div>
         {priceError && <p className="text-xs font-medium text-signal">{priceError}</p>}
+        <AcrossLeaguesToggle checked={sp.get("within") !== "1"} status={adjustment}
+                             onChange={(v) => set({ within: v ? null : "1" })} />
         <fieldset>
           <legend className="label">Role</legend>
           <div className="flex flex-wrap gap-2">
@@ -204,7 +210,8 @@ export default function Explorer() {
                           aria-sort={c.key && query.sort === c.key ? (query.order === "asc" ? "ascending" : "descending") : undefined}>
                         {c.key ? (
                           <button type="button" onClick={() => sortBy(c.key!)} className="font-medium hover:text-ink">
-                            {c.label}{query.sort === c.key && (query.order === "asc" ? " ↑" : " ↓")}
+                            {c.key === "score" && query.score === "adjusted" ? "Adjusted score" : c.label}
+                            {query.sort === c.key && (query.order === "asc" ? " ↑" : " ↓")}
                           </button>
                         ) : c.label}
                       </th>
@@ -246,6 +253,7 @@ export default function Explorer() {
             </div>
           )}
           <p className="mt-4 text-xs text-ink-faint">
+            {query.score === "adjusted" && "Adjusted score: the 2024/25 score corrected for league strength, so leagues can be compared. "}
             Value for money: score points above (+) or below (−) what players of the same role and league usually score at that price.
             Blank where price explains too little of the score to say.
           </p>

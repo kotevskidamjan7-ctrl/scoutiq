@@ -143,3 +143,30 @@ def test_failed_login_uses_the_oauth2_error_format(seeded):
     r = c.post("/api/v1/auth/login", data={"username": "scout@example.com", "password": "Wrong-pass-2026"})
     assert r.status_code == 401
     assert r.json() == {"error": "invalid_grant", "error_description": "Wrong email or password"}
+
+
+
+def test_adjusted_scores_compare_across_leagues(seeded):
+    """With score=adjusted, only players with an adjusted score are listed, ranked by it."""
+    c, players, league = seeded
+    from sqlalchemy import update
+    from app.db.session import get_db
+    from app.main import app as the_app
+    from app.models import ScoutingScore
+    db = the_app.dependency_overrides[get_db]()
+    # give half the players an adjusted score that reverses their order
+    for i, p in enumerate(players[:6]):
+        db.execute(update(ScoutingScore).where(ScoutingScore.player_id == p.id).values(score_adjusted=90.0 - i))
+    db.flush()
+    body = c.get("/api/v1/players", params={"score": "adjusted"}).json()
+    assert body["total"] == 6
+    assert [r["player_id"] for r in body["items"]] == [p.id for p in players[:6]]
+    assert body["items"][0]["score"] == 90.0
+    assert c.get("/api/v1/players").json()["total"] == 12          # within-league: everyone
+    assert c.get("/api/v1/players", params={"score": "other"}).status_code == 422
+
+
+def test_adjustment_status(seeded):
+    c, _, _ = seeded
+    s = c.get("/api/v1/stats/adjustment").json()
+    assert s == {"active": False, "source": None, "reason": None}
