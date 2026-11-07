@@ -250,8 +250,8 @@ export default function Dashboard() {
               </dd>
               <dd className="text-ink-soft">
                 {adj == null
-                  ? "Needs club strength ratings from ClubElo. Until then, scores rank players within their own league only."
-                  : adj.reason}
+                  ? "Needs league strength data (ClubElo or UEFA coefficients). Until then, scores rank players within their own league only."
+                  : `${adj.source ? `Based on ${adj.source}: ` : ""}${adj.reason}.`}
               </dd>
             </div>
           </dl>

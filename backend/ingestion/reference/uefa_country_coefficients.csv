@@ -1,0 +1,35 @@
+# UEFA association (country) coefficient: points earned per season, men's club competitions.
+# Season points = average points per club of that association in that season (UEFA method).
+# Sources, retrieved 2026-11-07, identical values in both:
+#   https://terrikon.com/en/football/uefa_coefs/cranks/2026
+#   https://euroranking.net/en/association-coefficient/
+# Cross-check: PO1, NL1, BE1 2024/25 and 2025/26 also match https://www.football-coefficient.eu/ country pages.
+tm_code,country,season,points
+GB1,England,2024,29.464
+GB1,England,2025,28.680
+ES1,Spain,2024,23.892
+ES1,Spain,2025,22.093
+IT1,Italy,2024,21.875
+IT1,Italy,2025,19.000
+L1,Germany,2024,18.421
+L1,Germany,2025,21.785
+FR1,France,2024,17.928
+FR1,France,2025,18.321
+PO1,Portugal,2024,16.250
+PO1,Portugal,2025,20.500
+NL1,Netherlands,2024,15.250
+NL1,Netherlands,2025,9.979
+BE1,Belgium,2024,15.650
+BE1,Belgium,2025,11.400
+TR1,Türkiye,2024,10.300
+TR1,Türkiye,2025,11.075
+A1,Austria,2024,9.650
+A1,Austria,2025,4.100
+C1,Switzerland,2024,7.050
+C1,Switzerland,2025,6.200
+PL1,Poland,2024,11.750
+PL1,Poland,2025,15.750
+KR1,Croatia,2024,5.875
+KR1,Croatia,2025,7.031
+SER1,Serbia,2024,3.725
+SER1,Serbia,2025,5.750

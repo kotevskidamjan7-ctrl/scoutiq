@@ -115,7 +115,7 @@ export interface Dashboard {
     leagues_enabled: number; latest_valuation_date: string | null };
   leagues: DashboardLeague[];
   imports: { source: string; kind: string; status: string; finished_at: string | null; rows_written: number; requests_used: number }[];
-  model: { version: string | null; league_adjustment: { accepted: boolean; reason: string } | null };
+  model: { version: string | null; league_adjustment: { accepted: boolean; reason: string; source?: string | null } | null };
   value_picks: Record<Role, PlayerRow[]>;
   value_for_money_shown: Record<Role, boolean>;
   budget_picks: Record<string, Record<Role, PlayerRow[]>>; // price cap in EUR -> role -> players

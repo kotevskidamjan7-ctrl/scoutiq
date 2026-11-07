@@ -192,6 +192,7 @@ class DashboardImport(BaseModel):
 class AdjustmentStatus(BaseModel):
     accepted: bool
     reason: str
+    source: str | None = None
 
 
 class ModelStatus(BaseModel):

@@ -124,7 +124,10 @@ def dashboard(db: Session, max_age: int | None = None) -> dict:
         "imports": imports,
         "model": {
             "version": M.VERSION if model else None,
-            "league_adjustment": None if adj is None else {"accepted": adj.accepted, "reason": adj.reason},
+            "league_adjustment": None if adj is None else {
+            "accepted": adj.accepted, "reason": adj.reason,
+            "source": {"uefa": "UEFA association coefficients", "clubelo": "ClubElo"}.get(
+                (adj.details or {}).get("strength", "clubelo"))},
         },
         "value_picks": {role: [vars(r) for r in picks[role]] for role in ROLES},
         "value_for_money_shown": vfm_shown,

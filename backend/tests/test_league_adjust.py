@@ -212,3 +212,64 @@ def test_value_for_money_hidden_when_price_explains_little(db):
         assert all(r.value_for_money is None and "value_for_money_note" in r.breakdown for r in rows)
     else:
         assert all(r.value_for_money is not None for r in rows)
+
+
+# ---------- UEFA association coefficients as the strength source (ClubElo unavailable, 2026-11-07) ----------
+
+def test_uefa_file_reads_and_is_plausible():
+    from ingestion.uefa_coefficients import read
+    rows = read()
+    assert len(rows) == 28 and {r["season"] for r in rows} == {2024, 2025}
+    gb = {r["season"]: r["points"] for r in rows if r["tm_code"] == "GB1"}
+    assert gb == {2024: 29.464, 2025: 28.680}
+    # every league has both seasons
+    codes = {r["tm_code"] for r in rows}
+    assert all(sum(1 for r in rows if r["tm_code"] == c) == 2 for c in codes)
+
+
+def test_implausible_uefa_points_stop_loudly(tmp_path):
+    from ingestion.uefa_coefficients import read
+    bad = tmp_path / "bad.csv"
+    bad.write_text("tm_code,country,season,points\nGB1,England,2024,290.0\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="implausible"):
+        read(bad)
+
+
+def test_uefa_load_is_separate_from_clubelo(db, tmp_path):
+    from ingestion.uefa_coefficients import METHOD, load as load_uefa, read
+    load(db, ClubEloClient(tmp_path, session=_FakeSession(), sleep=lambda s: None), [2024])   # ClubElo rows
+    assert load_uefa(db, read()) >= 18
+    assert load_uefa(db, read()) >= 18            # loading twice replaces, never duplicates
+    gb1 = db.scalar(select(League).where(League.tm_competition_id == "GB1"))
+    uefa = LA.season_strength(db, [2024, 2025], METHOD)
+    assert uefa[(gb1.id, 2024)] == pytest.approx(29.464) and uefa[(gb1.id, 2025)] == pytest.approx(28.680)
+    assert LA.season_strength(db, [2024])[(gb1.id, 2024)] == pytest.approx(1950.5)   # ClubElo untouched
+
+
+def test_calibration_is_the_same_in_any_unit():
+    """The same leagues measured in UEFA points: beta per 10 points equals beta per 100 Elo when 10 points ~ 100 Elo."""
+    uefa = {k: v / 10 for k, v in STRENGTH.items()}   # 1800 -> 180, 1600 -> 160: a gap of 20 'points'
+    a = LA.calibrate(simulate(league_gap=1.0, n_movers=40), STRENGTH, 2024, [1, 2], unit=100)
+    b = LA.calibrate(simulate(league_gap=1.0, n_movers=40), uefa, 2024, [1, 2], unit=10)
+    assert a.accepted and b.accepted
+    assert b.beta == pytest.approx(a.beta) and b.ci_high == pytest.approx(a.ci_high)
+
+
+def test_stored_uefa_calibration_is_reapplied_with_its_unit(db):
+    league = _seed_centre_backs(db)
+    score_run(db, 2024)
+    model = db.scalar(select(ScoringModel))
+    db.add(LeagueStrength(league_id=league.id, as_of_date=date(2025, 5, 31), mean_club_elo=29.464,
+                          method="uefa_season_points"))
+    db.add(LeagueAdjustment(model_id=model.id, season=2024, beta=-0.5, ci_low=-0.8, ci_high=-0.2, n_movers=40,
+                            n_stayers=200, accepted=True, reason="test", e_ref=19.464,
+                            details={"strength": "uefa", "unit": "10 UEFA season points"}))
+    db.flush()
+    assert LA.apply(db, model, 2024) == 12
+    s = db.scalars(select(ScoutingScore)).all()
+    # 10 points above the reference = one unit: z shifts by +0.5
+    from statistics import NormalDist
+    N = NormalDist()
+    for x in s:
+        expect = round(100 * N.cdf(N.inv_cdf(min(max(x.score_within_league, 0.5), 99.5) / 100) + 0.5), 1)
+        assert x.score_adjusted == pytest.approx(expect, abs=0.05)
