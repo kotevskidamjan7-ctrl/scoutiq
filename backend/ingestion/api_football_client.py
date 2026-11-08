@@ -25,6 +25,14 @@ class PlanRestricted(Exception):
     """The free plan refused the request (e.g. page > 3)."""
 
 
+class ServerUnavailable(Exception):
+    """API-Football answered with a server error (5xx) several times in a row. Nothing is lost:
+    every response fetched so far is cached, and the next run continues where this one stopped."""
+
+
+SERVER_RETRY_WAITS = (10, 30)  # seconds before the 2nd and 3rd attempt after a 5xx answer
+
+
 class ApiError(Exception):
     """Any other error reported by the API."""
 
@@ -79,7 +87,7 @@ class ApiFootballClient:
         if self.daily_remaining is not None and self.daily_remaining <= self.reserve:
             raise BudgetExhausted(f"daily quota low ({self.daily_remaining} left, reserve {self.reserve})")
 
-    def _live_get(self, endpoint: str, params: dict, retry_on_rate_limit: bool) -> dict:
+    def _live_get(self, endpoint: str, params: dict, retry_on_rate_limit: bool, server_attempt: int = 0) -> dict:
         self._check_budget()
         wait = self.min_interval_s - (time.monotonic() - self._last_call)
         if self._last_call and wait > 0:
@@ -96,6 +104,15 @@ class ApiFootballClient:
 
         if resp.status_code == 429:
             return self._rate_limited(endpoint, params, retry_on_rate_limit)
+        if resp.status_code >= 500:
+            # the provider's server failed; usually temporary. Each attempt counts as a request.
+            if server_attempt < len(SERVER_RETRY_WAITS):
+                print(f"  API-Football server error {resp.status_code} on {endpoint}; "
+                      f"retrying in {SERVER_RETRY_WAITS[server_attempt]} s")
+                self.sleep(SERVER_RETRY_WAITS[server_attempt])
+                return self._live_get(endpoint, params, retry_on_rate_limit, server_attempt + 1)
+            raise ServerUnavailable(f"API-Football answered {resp.status_code} {server_attempt + 1} times for "
+                                    f"{endpoint} {params}")
         resp.raise_for_status()
         body = resp.json()
 

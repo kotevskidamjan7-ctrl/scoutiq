@@ -3,7 +3,7 @@
 import pytest
 
 from ingestion.api_football import club_key, fetch, match_clubs
-from ingestion.api_football_client import ApiFootballClient, BudgetExhausted, PlanRestricted
+from ingestion.api_football_client import ApiFootballClient, BudgetExhausted, PlanRestricted, ServerUnavailable
 
 
 class FakeResponse:
@@ -93,6 +93,34 @@ def test_rate_limit_waits_and_retries_once(tmp_path):
     client = ApiFootballClient("k", tmp_path, session=session, sleep=slept.append, min_interval_s=0)
     assert client.get("a", {"x": 1})["response"] == ["fine"]
     assert 61 in slept
+
+
+def test_server_error_is_retried_then_succeeds(tmp_path):
+    """Found on real data (2026-11-08): API-Football answered 500 for teams?league=94."""
+    answers = iter([FakeResponse({}, status=500), ok({"response": ["fine"]})])
+    slept = []
+    session = FakeSession(lambda e, p: next(answers))
+    client = ApiFootballClient("k", tmp_path, session=session, sleep=slept.append, min_interval_s=0)
+    assert client.get("teams", {"league": 94})["response"] == ["fine"]
+    assert slept == [10] and client.live_requests == 2
+
+
+def test_persistent_server_error_stops_with_a_clear_exception(tmp_path):
+    session = FakeSession(lambda e, p: FakeResponse({}, status=500))
+    slept = []
+    client = ApiFootballClient("k", tmp_path, session=session, sleep=slept.append, min_interval_s=0)
+    with pytest.raises(ServerUnavailable, match="500 3 times"):
+        client.get("teams", {"league": 94})
+    assert slept == [10, 30] and len(session.calls) == 3
+    assert client.cached("teams", {"league": 94}) is None      # a failure is never cached
+
+
+def test_server_retries_respect_the_run_cap(tmp_path):
+    session = FakeSession(lambda e, p: FakeResponse({}, status=503))
+    client = ApiFootballClient("k", tmp_path, session=session, sleep=lambda s: None, min_interval_s=0, max_requests=2)
+    with pytest.raises(BudgetExhausted):
+        client.get("teams", {"league": 94})
+    assert len(session.calls) == 2
 
 
 # ---------- fetch flow ----------
@@ -202,3 +230,51 @@ def test_league_check_refuses_wrong_country_cup_or_missing_coverage():
 
 def test_turkiye_matches_turkey():
     assert check_league_response(_league_body(country="Turkey"), _L("Türkiye"), 2024)[0] == []
+
+
+# --- club matching: names sharing a word ("Real ...") -----------------------------------------
+from ingestion.api_football import club_similarity, plan_links  # noqa: E402
+
+REAL_API = [{"id": 541, "name": "Real Madrid"}, {"id": 543, "name": "Real Betis"},
+            {"id": 548, "name": "Real Sociedad"}, {"id": 720, "name": "Valladolid"}]
+REAL_TM = [  # order chosen so a tie would pick the wrong club first
+    {"club_id": 26, "name": "Real Betis Balompié S.A.D."},
+    {"club_id": 39, "name": "Real Sociedad de Fútbol S.A.D."},
+    {"club_id": 61, "name": "Real Valladolid Club de Fútbol"},
+    {"club_id": 7, "name": "Real Madrid Club de Fútbol"},
+]
+
+
+def test_real_clubs_are_told_apart():
+    matches, unmatched = match_clubs(REAL_API, REAL_TM)
+    got = {a["id"]: t["club_id"] for a, t, _ in matches}
+    assert got == {541: 7, 543: 26, 548: 39, 720: 61}
+    assert unmatched == []
+
+
+def test_real_sociedad_keeps_its_distinctive_word():
+    assert club_key("Real Sociedad de Fútbol S.A.D.") == "real sociedad"
+    assert club_similarity("Real Sociedad", "Real Madrid Club de Fútbol") < 70
+
+
+def test_existing_links_are_kept_unless_remap():
+    matches, _ = match_clubs(REAL_API, REAL_TM)
+    existing = {"541": 39, "548": 7}  # old, swapped links
+    links, changed, conflicts = plan_links(matches, existing)
+    assert "541" not in links and "548" not in links
+    assert {str(a["id"]) for a, _, _ in changed} == {"541", "548"}
+    # nothing written may give a club to two teams
+    final = {**existing, **links}
+    assert len(set(final.values())) == len(final)
+
+
+def test_remap_can_swap_links_without_clashing():
+    matches, _ = match_clubs(REAL_API, REAL_TM)
+    links, _, conflicts = plan_links(matches, {"541": 39, "548": 7}, remap=True)
+    assert links["541"] == 7 and links["548"] == 39 and conflicts == []
+
+
+def test_club_linked_to_another_team_is_not_taken():
+    matches, _ = match_clubs([{"id": 1, "name": "Real Madrid"}], REAL_TM)
+    links, _, conflicts = plan_links(matches, {"999": 7}, remap=True)
+    assert links == {} and len(conflicts) == 1

@@ -21,13 +21,13 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from rapidfuzz import fuzz
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.db.session import SessionLocal
 from app.models import Club, ClubSourceId, DataSource, ImportRun, League, PlayerSeasonStats
-from ingestion.api_football_client import ApiFootballClient, BudgetExhausted
+from ingestion.api_football_client import ServerUnavailable, ApiFootballClient, BudgetExhausted
 from ingestion.normalize import normalize_name
 
 FREE_PLAN_MAX_PAGE = 3
@@ -99,6 +99,12 @@ def cmd_fetch(args) -> None:
             run.notes = f"season={args.season}; stopped: {exc}"
             done = False
             print(f"Stopped: {exc}")
+        except ServerUnavailable as exc:
+            run.status = "partial"
+            run.notes = f"season={args.season}; stopped: {exc}"
+            done = False
+            print(f"Stopped: the API-Football server is having problems ({exc}).\n"
+                  "Nothing is lost. Try the same command again in an hour or tomorrow.")
         run.requests_used = client.live_requests
         run.finished_at = datetime.now(timezone.utc)
         session.commit()
@@ -164,20 +170,28 @@ CLUB_STOPWORDS = {
     "rcd", "sd", "ca", "club", "football", "futbol", "calcio", "associazione", "sportiva", "societa", "de", "del",
     "la", "le", "of", "the", "e", "v", "ev", "und", "fur", "verein", "ballspielverein", "sportgemeinschaft",
     "turn", "fussball", "spielbetriebs", "gmbh", "kgaa", "spa", "s", "p", "a", "sad", "cfc", "bewegungsspiele",
-    "1", "fk", "deportivo", "balompie", "sportverein", "sociedad", "anonima", "srl",
+    "1", "fk", "deportivo", "balompie", "sportverein", "anonima", "srl",
 }
 
 
 def club_key(name: str) -> str:
-    tokens = [t for t in normalize_name(name).split() if t not in CLUB_STOPWORDS and not t.isdigit()]
+    tokens = [t for t in normalize_name(name).split() if t not in CLUB_STOPWORDS and not t.isdigit() and len(t) > 1]
     return " ".join(tokens)
 
 
 def club_similarity(api_name: str, tm_name: str, api_venue: str | None = None, tm_venue: str | None = None) -> float:
-    score = fuzz.token_set_ratio(club_key(api_name), club_key(tm_name))
+    a, t = club_key(api_name), club_key(tm_name)
+    if not a or not t:
+        return 0.0
+    score = fuzz.token_set_ratio(a, t)
     if api_venue and tm_venue and fuzz.token_set_ratio(normalize_name(api_venue), normalize_name(tm_venue)) >= 90:
         score = max(score, 90.0)  # same stadium is strong supporting evidence
     return score
+
+
+def _tiebreak(api_name: str, tm_name: str) -> float:
+    """Second opinion on the full names, used only to order equal scores."""
+    return fuzz.ratio(normalize_name(api_name), normalize_name(tm_name))
 
 
 def match_clubs(api_teams: list[dict], tm_clubs: list[dict], threshold: float = 70) -> tuple[list, list]:
@@ -188,14 +202,16 @@ def match_clubs(api_teams: list[dict], tm_clubs: list[dict], threshold: float = 
     """
     pairs = sorted(
         (
-            (club_similarity(a["name"], t["name"], a.get("venue"), t.get("venue")), i, j)
+            (club_similarity(a["name"], t["name"], a.get("venue"), t.get("venue")),
+             _tiebreak(a["name"], t["name"]), -i, -j)
             for i, a in enumerate(api_teams)
             for j, t in enumerate(tm_clubs)
         ),
         reverse=True,
     )
     used_api, used_tm, matches = set(), set(), []
-    for score, i, j in pairs:
+    for score, _tb, ni, nj in pairs:
+        i, j = -ni, -nj
         if score < threshold:
             break
         if i in used_api or j in used_tm:
@@ -205,6 +221,38 @@ def match_clubs(api_teams: list[dict], tm_clubs: list[dict], threshold: float = 
         matches.append((api_teams[i], tm_clubs[j], score))
     unmatched = [a for i, a in enumerate(api_teams) if i not in used_api]
     return matches, unmatched
+
+
+def plan_links(matches: list, existing: dict[str, int], remap: bool = False) -> tuple[dict, list, list]:
+    """Decide which API team -> club links to write.
+
+    existing: {api team id: club_id} already stored. Existing links are kept unless remap=True.
+    The final state never gives one club to two API teams.
+    Returns (links {api id: club_id} to store, changed [(api, tm, old_club_id)], conflicts [(api, tm)]).
+    """
+    links, changed, by_id = {}, [], {}
+    for a, t, _score in matches:
+        api_id, club = str(a["id"]), t["club_id"]
+        by_id[api_id] = (a, t)
+        old = existing.get(api_id)
+        if old is not None and old != club:
+            changed.append((a, t, old))
+            if not remap:
+                continue
+        links[api_id] = club
+    conflicts = []
+    while True:
+        final = {**existing, **links}
+        owners: dict[int, list[str]] = {}
+        for api_id, club in final.items():
+            owners.setdefault(club, []).append(api_id)
+        clash = [k for ids in owners.values() if len(ids) > 1 for k in ids
+                 if k in links and existing.get(k) != links[k]]
+        if not clash:
+            return links, changed, conflicts
+        for k in clash:
+            conflicts.append(by_id[k])
+            del links[k]
 
 
 def _tm_venues(tm_ext_ids: list[str]) -> dict[str, str]:
@@ -236,7 +284,7 @@ def cmd_map_clubs(args) -> None:
         af = session.scalar(select(DataSource).where(DataSource.code == "api_football"))
         tm = session.scalar(select(DataSource).where(DataSource.code == "transfermarkt"))
         total_matched = 0
-        review, unmatched_all = [], []
+        review, unmatched_all, changes, conflicts_all = [], [], [], []
         for league in enabled_leagues(session):
             body = client.cached("teams", {"league": league.apifootball_id, "season": args.season})
             if body is None:
@@ -276,13 +324,30 @@ def cmd_map_clubs(args) -> None:
             matches, unmatched = match_clubs(api_teams, tm_clubs)
             matches = forced + matches
 
+            existing = {
+                r.external_id: r.club_id
+                for r in session.execute(
+                    select(ClubSourceId.external_id, ClubSourceId.club_id).where(ClubSourceId.source_id == af.id)
+                )
+            }
+            links, changed, conflicts = plan_links(matches, existing, remap=args.remap)
+            names = {c["club_id"]: c["name"] for c in tm_clubs}
+            for a, t, old in changed:
+                verb = "changed" if args.remap else "kept old link, new guess differs"
+                changes.append(f"{league.name}: '{a['name']}' {verb}: '{names.get(old, old)}' vs '{t['name']}'")
+            for a, t in conflicts:
+                conflicts_all.append(f"{league.name}: '{a['name']}' -> '{t['name']}' skipped (club already linked)")
+            # remove the links being rewritten first, so swaps don't trip the one-link-per-club rule
+            rewrite = [k for k, v in links.items() if existing.get(k) != v]
+            if rewrite:
+                session.execute(delete(ClubSourceId).where(
+                    ClubSourceId.source_id == af.id, ClubSourceId.external_id.in_(rewrite)))
+                session.flush()
+                for k in rewrite:
+                    session.add(ClubSourceId(source_id=af.id, external_id=k, club_id=links[k]))
+                session.flush()
             for a, t, score in matches:
-                link = session.get(ClubSourceId, (af.id, str(a["id"])))
-                if link:
-                    link.club_id = t["club_id"]
-                else:
-                    session.add(ClubSourceId(source_id=af.id, external_id=str(a["id"]), club_id=t["club_id"]))
-                if score < 90:
+                if score < 90 and str(a["id"]) in links:
                     review.append(f"{league.name}: '{a['name']}' -> '{t['name']}' (score {score:.0f})")
             unmatched_all += [f"{league.name}: '{a['name']}' (API id {a['id']})" for a in unmatched]
             total_matched += len(matches)
@@ -293,6 +358,13 @@ def cmd_map_clubs(args) -> None:
     if review:
         print("\nPlease check these lower-confidence matches:")
         print("\n".join(f"  {line}" for line in review))
+    if changes:
+        print("\nExisting links where the matcher now guesses differently"
+              + ("" if args.remap else " (kept; rerun with --remap to apply)") + ":")
+        print("\n".join(f"  {line}" for line in changes))
+    if conflicts_all:
+        print("\nSkipped because the club is already linked to another team:")
+        print("\n".join(f"  {line}" for line in conflicts_all))
     if unmatched_all:
         print("\nNot matched (add to ingestion/club_overrides.json as {\"<API id>\": \"<Transfermarkt club id>\"}):")
         print("\n".join(f"  {line}" for line in unmatched_all))
@@ -478,6 +550,8 @@ def main() -> None:
     p_status.add_argument("--season", type=int, default=2024)
     p_map = sub.add_parser("map-clubs", help="link API teams to Transfermarkt clubs (no requests)")
     p_map.add_argument("--season", type=int, default=2024)
+    p_map.add_argument("--remap", action="store_true",
+                       help="replace existing links when the matcher now guesses a different club")
     p_load = sub.add_parser("load", help="link players and store stats from the cache (no requests)")
     p_load.add_argument("--season", type=int, default=2024)
     p_gap = sub.add_parser("gap-fill", help="fetch own records of regulars still missing after load (uses requests)")
