@@ -1,6 +1,6 @@
 // Club improvement form state and how it becomes a request (and how diagnosis suggestions change it).
 import type { ImproveRequest, ImproveResponse, Interpretation, Role, SquadPlayer } from "./api";
-import { moneyText, parseMoney } from "./format";
+import { eur, moneyText, parseMoney } from "./format";
 
 // players per role in each formation (same as the server's FORMATIONS)
 export const ROLE_COUNTS: Record<string, Record<string, number>> = {
@@ -113,4 +113,23 @@ export function improveFromInterpretation(r: Interpretation, current: ImproveFor
     includeLowMinutes: !!f.include_low_minutes,
     leagueIds: r.league_ids, nationalities: f.nationalities, adjusted: current.adjusted,
   };
+}
+
+
+/** The form that produced a saved request (for reopening a saved plan). */
+export function fromImproveRequest(r: ImproveRequest): ImproveForm {
+  return {
+    formation: r.formation, budget: r.budget_eur === 0 ? "0" : money(r.budget_eur), maxSignings: r.max_signings ?? 2,
+    signingRoles: r.signing_roles ?? [], ageMin: r.age_min?.toString() ?? "", ageMax: r.age_max?.toString() ?? "",
+    maxPrice: r.max_price_eur ? money(r.max_price_eur) : "", recentForm: (r.min_minutes_next ?? 900) > 0,
+    includeLowMinutes: (r.min_minutes ?? 900) < 900, leagueIds: r.league_ids ?? [], nationalities: r.nationalities ?? [],
+    adjusted: r.score === "adjusted",
+  };
+}
+
+/** A default name for a saved plan, e.g. "Brentford: 2 signings, €10m". */
+export function describeImprove(clubName: string | null, r: ImproveRequest, signings: number): string {
+  const who = clubName ?? "My squad";
+  if (r.budget_eur === 0) return `${who}: best XI as it is (${r.formation})`;
+  return `${who}: ${signings} signing${signings === 1 ? "" : "s"}, ${eur(r.budget_eur)} budget (${r.formation})`;
 }

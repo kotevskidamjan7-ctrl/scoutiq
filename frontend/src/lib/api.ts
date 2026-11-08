@@ -58,10 +58,15 @@ export interface OptimizeResponse {
 export interface User { id: number; email: string; role: "scout" | "admin"; created_at: string; }
 
 export interface ScenarioSummary {
-  id: number; name: string; mode: string; status: string;
+  id: number; name: string; mode: "build" | "improve"; status: string;
   total_score: number | null; cost_eur: number | null; budget_eur: number; created_at: string;
+  club_name: string | null; gain: number | null; signings: number | null;   // improve only
 }
-export interface Scenario extends ScenarioSummary { request: OptimizeRequest; result: OptimizeResponse; }
+export interface BuildScenario extends ScenarioSummary { mode: "build"; request: OptimizeRequest; result: OptimizeResponse; }
+export interface ImproveScenario extends ScenarioSummary {
+  mode: "improve"; club_id: number | null; request: ImproveRequest; result: ImproveResponse;
+}
+export type Scenario = BuildScenario | ImproveScenario;
 
 export interface League { id: number; name: string; country: string; scored_players: number; }
 
@@ -216,7 +221,9 @@ export const api = {
   optimize: (req: OptimizeRequest) =>
     request<OptimizeResponse>("/optimize/squad", { method: "POST", body: JSON.stringify(req) }),
   saveScenario: (name: string, req: OptimizeRequest) =>
-    request<Scenario>("/scenarios", { method: "POST", body: JSON.stringify({ name, request: req }) }),
+    request<BuildScenario>("/scenarios", { method: "POST", body: JSON.stringify({ name, request: req }) }),
+  saveImproveScenario: (name: string, clubId: number | null, req: ImproveRequest) =>
+    request<ImproveScenario>("/scenarios/improve", { method: "POST", body: JSON.stringify({ name, club_id: clubId, request: req }) }),
   scenarios: () => request<ScenarioSummary[]>("/scenarios"),
   scenario: (id: number) => request<Scenario>(`/scenarios/${id}`),
   deleteScenario: (id: number) => request<void>(`/scenarios/${id}`, { method: "DELETE" }),

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { SquadPlayer } from "./api";
-import { applyImproveSuggestion, DEFAULT_IMPROVE, replacements, toImproveRequest } from "./improve";
+import { applyImproveSuggestion, DEFAULT_IMPROVE, describeImprove, fromImproveRequest, replacements, toImproveRequest } from "./improve";
 
 const sp = (id: number, score: number | null = 50): SquadPlayer => ({
   player_id: id, name: `P${id}`, age: 25, position: null, role: score == null ? null : "ST", score,
@@ -54,5 +54,29 @@ describe("replacements", () => {
     const r = replacements(current, next);
     expect(r.get(10)?.name).toBe("Weak CB");
     expect(r.get(11)?.name).toBe("Old striker");
+  });
+});
+
+describe("fromImproveRequest", () => {
+  const squad = [sp(1), sp(2)];
+  it("reopens a saved request into the form that made it", () => {
+    const form = { ...DEFAULT_IMPROVE, formation: "4-4-2", budget: "7.5m", maxSignings: 3, signingRoles: ["ST", "CB"] as const,
+      ageMax: "26", maxPrice: "3m", recentForm: false, includeLowMinutes: true, leagueIds: [4], nationalities: ["Serbia"], adjusted: false };
+    const f = { ...form, signingRoles: [...form.signingRoles] };
+    const { req } = toImproveRequest(f, squad, new Set([1, 2]), new Set());
+    expect(fromImproveRequest(req!)).toEqual(f);
+  });
+  it("keeps a zero budget as 0", () => {
+    const { req } = toImproveRequest({ ...DEFAULT_IMPROVE, budget: "0" }, squad, new Set([1]), new Set());
+    expect(fromImproveRequest(req!).budget).toBe("0");
+  });
+});
+
+describe("describeImprove", () => {
+  const req = { formation: "4-3-3", budget_eur: 10_000_000, owned_player_ids: [1] };
+  it("names the club, signings and budget", () => {
+    expect(describeImprove("Brentford", req, 2)).toBe("Brentford: 2 signings, €10m budget (4-3-3)");
+    expect(describeImprove(null, req, 1)).toBe("My squad: 1 signing, €10m budget (4-3-3)");
+    expect(describeImprove("Brentford", { ...req, budget_eur: 0 }, 0)).toBe("Brentford: best XI as it is (4-3-3)");
   });
 });

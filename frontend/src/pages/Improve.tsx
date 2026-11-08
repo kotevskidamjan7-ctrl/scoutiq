@@ -1,14 +1,15 @@
 // Club improvement (Mode B): start from your squad, find the signings that improve the starting XI most.
-import { FormEvent, ReactNode, useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { FormEvent, ReactNode, useCallback, useEffect, useRef, useState } from "react";
+import { useLocation } from "react-router-dom";
 import { api, ApiError, Club, ImproveRequest, ImproveResponse, PlayerRow, Role, SquadPlayer } from "../lib/api";
-import { eur, ROLE_NAMES, signed } from "../lib/format";
+import { eur, ROLE_NAMES } from "../lib/format";
 import { FORMATIONS } from "../lib/formations";
-import { applyImproveSuggestion, DEFAULT_IMPROVE, ImproveForm, improveFromInterpretation, replacements, ROLE_COUNTS, toImproveRequest } from "../lib/improve";
+import { applyImproveSuggestion, DEFAULT_IMPROVE, describeImprove, fromImproveRequest, ImproveForm, improveFromInterpretation, ROLE_COUNTS, toImproveRequest } from "../lib/improve";
 import AssistantBox from "../components/AssistantBox";
 import ScopeChips from "../components/ScopeChips";
 import { AcrossLeaguesToggle, useAdjustment } from "../lib/adjustment";
-import TacticsBoard from "../components/TacticsBoard";
+import ImproveResult from "../components/ImproveResult";
+import Toast from "../components/Toast";
 import PageHeader from "../components/PageHeader";
 
 function Field({ id, label, error, hint, children }: { id: string; label: string; error?: string; hint?: string; children: ReactNode }) {
@@ -75,14 +76,21 @@ export default function Improve() {
   const [lastReq, setLastReq] = useState<ImproveRequest | null>(null);
   const [failure, setFailure] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [tab, setTab] = useState(0);
+  const [runs, setRuns] = useState(0);          // a new key per result, so plan tabs start at the best plan
+  const [name, setName] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
+  const clearToast = useCallback(() => setToast(null), []);
+  const location = useLocation();
+  const reopened = (location.state as { improve?: ImproveRequest; clubId?: number | null; name?: string } | null);
+  const [reopenedName, setReopenedName] = useState<string | null>(null);
 
   const set = <K extends keyof ImproveForm>(k: K, v: ImproveForm[K]) => setForm((f) => ({ ...f, [k]: v }));
   const adjustment = useAdjustment();
   const toggle = (s: Set<number>, id: number) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; };
 
   async function pickClub(c: Club) {
-    setClub(c); setResult(null); setFailure(null);
+    setClub(c); setResult(null); setFailure(null); setReopenedName(null);
     try {
       const s = await api.squad(c.id);
       setSquad(s.players);
@@ -91,30 +99,77 @@ export default function Improve() {
     } catch (e) { setFailure(e instanceof ApiError ? e.message : "Could not load the squad."); }
   }
 
+  // reopening a saved plan: the club's squad as it is now, with the saved ticks, locks and settings
+  useEffect(() => {
+    const req = reopened?.improve;
+    if (!req) return;
+    let live = true;
+    (async () => {
+      try {
+        const base = reopened?.clubId != null ? await api.squad(reopened.clubId) : null;
+        const known = new Set(base?.players.map((p) => p.player_id) ?? []);
+        const extra = [...req.owned_player_ids, ...(req.left_player_ids ?? [])].filter((id) => !known.has(id));
+        const added = extra.length ? await api.squadPlayers(extra) : [];
+        if (!live) return;
+        const squadNow = [...(base?.players ?? []), ...added];
+        // saved ticks; players who joined since then (in neither list) start ticked
+        const left = new Set(req.left_player_ids ?? []);
+        const saved = new Set(req.owned_player_ids);
+        const inNow = new Set(squadNow.filter((p) => saved.has(p.player_id) || (!left.has(p.player_id) && p.score != null))
+          .map((p) => p.player_id));
+        const lockedNow = new Set((req.locked_player_ids ?? []).filter((id) => inNow.has(id)));
+        const f = fromImproveRequest(req);
+        setClub(base?.club ?? null);
+        setSquad(squadNow);
+        setInSquad(inNow);
+        setLocked(lockedNow);
+        setForm(f);
+        setReopenedName(reopened?.name ?? null);
+        run(f, lockedNow, { squad: squadNow, inSquad: inNow, club: base?.club ?? null, score: req.score ?? "within" });
+      } catch (e) { if (live) setFailure(e instanceof ApiError ? e.message : "Could not reopen the saved plan."); }
+    })();
+    return () => { live = false; };
+  }, [reopened]);
+
   async function addPlayer(p: PlayerRow) {
     if (squad.some((s) => s.player_id === p.player_id)) { setInSquad((s) => new Set(s).add(p.player_id)); return; }
     const [row] = await api.squadPlayers([p.player_id]);
     if (row) { setSquad((s) => [...s, row]); setInSquad((s) => new Set(s).add(row.player_id)); }
   }
 
-  async function run(f: ImproveForm, lockedNow: Set<number> = locked) {
-    const { req: base, errors } = toImproveRequest(f, squad, inSquad, lockedNow);
+  // ctx: values just loaded but not yet in state (reopening a saved plan)
+  async function run(f: ImproveForm, lockedNow: Set<number> = locked,
+                     ctx?: { squad: SquadPlayer[]; inSquad: Set<number>; club: Club | null; score: "within" | "adjusted" }) {
+    const { req: base, errors } = toImproveRequest(f, ctx?.squad ?? squad, ctx?.inSquad ?? inSquad, lockedNow);
     setErrors(errors);
     if (!base) { focusFirst(errors); return; }
-    const req = { ...base, score: adjustment?.active && f.adjusted ? "adjusted" as const : "within" as const };
+    const score = ctx?.score ?? (adjustment?.active && f.adjusted ? "adjusted" as const : "within" as const);
+    const req = { ...base, score };
+    const clubNow = ctx ? ctx.club : club;
     setLoading(true); setFailure(null);
-    try { setResult(await api.improve(req)); setLastReq(req); setTab(0); }
+    try {
+      const r = await api.improve(req);
+      setResult(r); setLastReq(req); setRuns((n) => n + 1);
+      setName(describeImprove(clubNow?.name ?? null, req, r.team?.players.filter((p) => p.signing).length ?? 0));
+    }
     catch (e) { setFailure(e instanceof ApiError ? e.message : "Something went wrong while finding signings."); }
     finally { setLoading(false); }
   }
   const submit = (e: FormEvent) => { e.preventDefault(); run(form); };
 
-  const plans = result?.team ? [result.team, ...result.alternatives] : [];
-  const plan = plans[Math.min(tab, Math.max(plans.length - 1, 0))] ?? null;
-  const ownedIds = useMemo(() => new Set(lastReq?.owned_player_ids ?? []), [lastReq]);
-  const repl = useMemo(() => (plan && result?.current ? replacements(result.current.players, plan.players) : new Map()), [plan, result]);
-  const signings = plan?.players.filter((p) => p.signing) ?? [];
-  const gain = plan && result?.current ? Math.round((plan.total_score - result.current.total_score) * 10) / 10 : null;
+  async function save() {
+    if (!lastReq) return;
+    setSaving(true);
+    try {
+      await api.saveImproveScenario(name.trim() || describeImprove(club?.name ?? null, lastReq, 0), club?.id ?? null, lastReq);
+      setToast("Plan saved to Saved scenarios");
+    } catch (e) {
+      setToast(e instanceof ApiError ? e.message : "The plan could not be saved.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   const scoredInSquad = squad.filter((p) => inSquad.has(p.player_id) && p.score != null).length;
   const lockedPerRole = squad.reduce<Record<string, number>>((acc, p) => {
     if (locked.has(p.player_id) && p.role) acc[p.role] = (acc[p.role] ?? 0) + 1;
@@ -280,9 +335,16 @@ export default function Improve() {
       </form>
 
       <section aria-label="Result" className="min-w-0 space-y-6">
+        {reopenedName && (
+          <p className="rounded-md border border-rule bg-surface-raised px-4 py-3 text-sm">
+            Reopened <span className="font-semibold">{reopenedName}</span>. The squad and players are today's data, so the
+            result can differ from the saved one.
+          </p>
+        )}
         {failure && <div role="alert" className="rounded-md border border-signal/40 bg-signal-soft px-4 py-3 text-signal">{failure}</div>}
 
-        {!result && !failure && (
+        {loading && !result && <p className="text-ink-soft">Finding signings…</p>}
+        {!result && !failure && !loading && (
           <div className="rounded-lg border border-dashed border-rule p-6 text-ink-soft">
             <p className="font-semibold text-ink">How it works</p>
             <p className="mt-1">Your players count as free. A signing only starts if he is better than the player he replaces,
@@ -328,89 +390,23 @@ export default function Improve() {
           </div>
         )}
 
-        {result && plan && (
+        {result?.team && lastReq && (
           <>
-            {plans.length > 1 && (
-              <div role="tablist" aria-label="Plans" className="flex flex-wrap gap-2">
-                {plans.map((t, k) => (
-                  <button key={k} role="tab" type="button" aria-selected={k === tab} onClick={() => setTab(k)}
-                          className={["rounded-md border px-3 py-1.5 text-sm font-semibold",
-                            k === tab ? "border-board bg-board text-chalk" : "border-rule bg-surface-raised hover:bg-surface-sunk"].join(" ")}>
-                    {k === 0 ? "Best plan" : `Alternative ${k}`}
-                    {result.current && <span className="num ml-2 font-normal opacity-80">{signed(t.total_score - result.current.total_score)}</span>}
-                  </button>
-                ))}
+            <ImproveResult key={runs} result={result} request={lastReq} />
+            <div className="flex flex-wrap items-end gap-3 border-t border-rule pt-5">
+              <div className="min-w-[16rem] flex-1">
+                <label htmlFor="planName" className="label">Plan name</label>
+                <input id="planName" className="field" value={name} onChange={(e) => setName(e.target.value)} maxLength={120} />
               </div>
-            )}
-
-            <div className="flex flex-wrap items-end gap-x-10 gap-y-3">
-              {gain != null && (
-                <p>
-                  <span className="condensed num block text-6xl font-extrabold leading-none">{signed(gain)}</span>
-                  <span className="text-sm text-ink-soft">
-                    starting XI total score, from {result.current!.total_score.toFixed(1)} to {plan.total_score.toFixed(1)}
-                  </span>
-                </p>
-              )}
-              <p className="text-sm text-ink-soft">
-                <span className="num block text-2xl font-bold text-ink">{eur(plan.cost_eur)}</span>
-                spent of {eur(result.budget_eur)}, {signings.length} of at most {lastReq?.max_signings} signings
-              </p>
+              <button type="button" className="btn-quiet" onClick={save} disabled={saving}>
+                {saving ? "Saving…" : "Save plan"}
+              </button>
             </div>
-
-            {signings.length === 0 ? (
-              <p className="rounded-md bg-surface-sunk p-4">
-                No affordable signing is better than your current starters. This is your best XI as it is.
-              </p>
-            ) : (
-              <ul className="divide-y divide-rule rounded-lg border border-rule bg-surface-raised" aria-label="Signings">
-                {signings.map((p) => {
-                  const r = repl.get(p.player_id);
-                  return (
-                    <li key={p.player_id} className="flex flex-wrap items-center gap-x-6 gap-y-1 px-4 py-3">
-                      <span className="min-w-[14rem] flex-1">
-                        <Link to={`/players/${p.player_id}`} className="font-semibold underline-offset-4 hover:underline">{p.name}</Link>
-                        <span className="block text-xs text-ink-faint">
-                          {ROLE_NAMES[p.role as keyof typeof ROLE_NAMES]}, age {p.age ?? "–"}. 2024/25: {p.club_2024_25} ({p.league})
-                        </span>
-                      </span>
-                      <span className="text-sm text-ink-soft">
-                        {r ? <>Replaces <span className="font-medium text-ink">{r.name}</span> ({r.score.toFixed(1)})</> : "Fills a gap"}
-                      </span>
-                      <span className="num w-28 text-right">
-                        <span className="font-semibold">{p.score.toFixed(1)}</span>
-                        {r && <span className="text-sm text-ink-soft"> ({signed(p.score - r.score)})</span>}
-                        <span className="block text-xs text-ink-faint">{eur(p.price_eur)}</span>
-                      </span>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-
-            <div className="grid gap-6 lg:grid-cols-2">
-              <figure>
-                <figcaption className="mb-2 font-semibold">Your XI now</figcaption>
-                {result.current
-                  ? <TacticsBoard team={result.current} formation={lastReq?.formation} ownIds={ownedIds} />
-                  : <p className="rounded-md bg-surface-sunk p-4 text-sm">Your squad cannot fill this formation on its own.</p>}
-              </figure>
-              <figure>
-                <figcaption className="mb-2 font-semibold">With the signings <span className="font-normal text-ink-soft">(yellow ring = new)</span></figcaption>
-                <TacticsBoard team={plan} formation={lastReq?.formation} bestIds={ownedIds} ownIds={ownedIds} />
-              </figure>
-            </div>
-
-            {(result.unscored.length > 0 || result.notes.length > 0) && (
-              <ul className="space-y-1 text-sm text-ink-soft">
-                {result.notes.map((n) => <li key={n}>{n}</li>)}
-                {result.unscored.length > 0 && <li>Left out without a score: {result.unscored.map((u) => u.name).join(", ")}.</li>}
-              </ul>
-            )}
           </>
         )}
       </section>
     </div>
+    <Toast text={toast} onDone={clearToast} />
     </div>
   );
 }

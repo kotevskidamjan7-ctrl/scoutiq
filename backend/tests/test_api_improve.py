@@ -179,3 +179,70 @@ def test_players_who_left_are_not_bought_back(seeded):
     assert excluded["team"]["total_score"] <= allowed["team"]["total_score"]
     bad = c.post("/api/v1/optimize/improve", json={**body, "left_player_ids": [owned[0]]})
     assert bad.status_code == 422
+
+
+# --- saving improvement plans as scenarios ------------------------------------------------------
+
+def _improve_body(squad, kid=None, **extra):
+    ids = [p.id for p in squad] + ([kid.id] if kid else [])
+    return {"formation": "4-3-3", "budget_eur": 15_000_000, "max_signings": 2, "owned_player_ids": ids, **extra}
+
+
+def test_save_and_reopen_an_improvement_plan(seeded):
+    c, own, squad, kid = seeded
+    body = _improve_body(squad, kid, locked_player_ids=[squad[0].id])
+    r = c.post("/api/v1/scenarios/improve", json={"name": "Own Town: two signings", "club_id": own.id, "request": body})
+    assert r.status_code == 201, r.text
+    saved = r.json()
+    assert saved["mode"] == "improve" and saved["club_name"] == "Own Town FC" and saved["club_id"] == own.id
+    signings = [p for p in saved["result"]["team"]["players"] if p["signing"]]
+    assert saved["signings"] == len(signings) >= 1
+    assert saved["gain"] == pytest.approx(saved["result"]["gain"], abs=0.05) and saved["gain"] > 0
+    assert saved["budget_eur"] == 15_000_000 and saved["cost_eur"] == saved["result"]["team"]["cost_eur"]
+
+    # the same plan as a fresh run (the server re-solves; nothing is taken from the client)
+    fresh = c.post("/api/v1/optimize/improve", json=body).json()
+    assert saved["result"]["team"]["total_score"] == fresh["team"]["total_score"]
+
+    listed = c.get("/api/v1/scenarios").json()
+    row = next(x for x in listed if x["id"] == saved["id"])
+    assert row["mode"] == "improve" and row["club_name"] == "Own Town FC" and row["gain"] == saved["gain"]
+
+    back = c.get(f"/api/v1/scenarios/{saved['id']}").json()
+    assert back["mode"] == "improve"
+    assert back["request"]["locked_player_ids"] == [squad[0].id]
+    assert back["request"]["owned_player_ids"] == body["owned_player_ids"]
+    assert back["result"]["current"]["total_score"] == saved["result"]["current"]["total_score"]
+
+    assert c.delete(f"/api/v1/scenarios/{saved['id']}").status_code == 204
+    assert c.get(f"/api/v1/scenarios/{saved['id']}").status_code == 404
+
+
+def test_improvement_plan_without_club_and_with_no_plan(seeded):
+    c, own, squad, kid = seeded
+    # no club (players added by hand) and an impossible request: still saved, with the diagnosis
+    only_gk = [p for p in squad if p.full_name.startswith("Own GK")]
+    r = c.post("/api/v1/scenarios/improve", json={"name": "Keepers only", "request": {
+        "formation": "4-3-3", "budget_eur": 0, "max_signings": 0, "owned_player_ids": [p.id for p in only_gk]}})
+    assert r.status_code == 201, r.text
+    d = r.json()
+    assert d["club_name"] is None and d["result"]["team"] is None and d["result"]["diagnosis"]
+    assert d["gain"] is None and d["signings"] is None and d["total_score"] is None
+
+
+def test_improvement_plan_checks_club_and_login(seeded):
+    c, own, squad, kid = seeded
+    body = {"name": "x", "club_id": 99999999, "request": _improve_body(squad)}
+    assert c.post("/api/v1/scenarios/improve", json=body).status_code == 422
+    auth = c.headers.pop("Authorization")
+    assert c.post("/api/v1/scenarios/improve", json={**body, "club_id": own.id}).status_code == 401
+    c.headers["Authorization"] = auth
+
+
+def test_build_scenarios_still_reopen_as_build(seeded):
+    c, own, squad, kid = seeded
+    r = c.post("/api/v1/scenarios", json={"name": "Build", "request": {
+        "formation": "4-3-3", "budget_eur": 50_000_000}})
+    assert r.status_code == 201, r.text
+    back = c.get(f"/api/v1/scenarios/{r.json()['id']}").json()
+    assert back["mode"] == "build" and "club_name" in back and back["club_name"] is None
