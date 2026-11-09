@@ -1,6 +1,7 @@
 // App frame: a slate rail (the board's colour) with navigation, and the page beside it.
 import { NavLink, Outlet } from "react-router-dom";
 import { useAuth } from "../lib/auth";
+import { useTrackPrevious } from "../lib/backTo";
 import { useCompare } from "../lib/compare";
 
 const link = ({ isActive }: { isActive: boolean }) =>
@@ -10,6 +11,7 @@ const link = ({ isActive }: { isActive: boolean }) =>
   ].join(" ");
 
 export default function Shell() {
+  useTrackPrevious();
   const { user, logout } = useAuth();
   const { picks } = useCompare();
   return (

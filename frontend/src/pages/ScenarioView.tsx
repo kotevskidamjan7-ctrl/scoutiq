@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { api, ApiError, Scenario } from "../lib/api";
 import { describe } from "../lib/builder";
 import ResultView from "../components/ResultView";
 import ImproveResult from "../components/ImproveResult";
+import BackButton from "../components/BackButton";
 
 const when = (iso: string) => new Date(iso).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" });
 
@@ -19,7 +20,7 @@ export default function ScenarioView() {
   }, [id]);
 
   if (error) return (
-    <div><p role="alert" className="text-signal">{error}</p><Link to="/scenarios" className="mt-3 inline-block underline">Back to saved scenarios</Link></div>
+    <div><p role="alert" className="text-signal">{error}</p><BackButton fallback="/scenarios" fallbackName="saved scenarios" className="mt-3" /></div>
   );
   if (!s) return <p className="text-ink-soft">Loading…</p>;
 
@@ -43,7 +44,7 @@ export default function ScenarioView() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <Link to="/scenarios" className="text-sm text-ink-soft underline-offset-4 hover:underline">Saved scenarios</Link>
+          <BackButton fallback="/scenarios" fallbackName="saved scenarios" className="mb-3" />
           <h1 className="condensed text-4xl font-bold leading-tight">{s.name}</h1>
           <p className="text-ink-soft">{subtitle}Saved {when(s.created_at)}.</p>
         </div>

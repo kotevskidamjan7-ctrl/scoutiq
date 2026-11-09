@@ -1,6 +1,6 @@
 // Player profile: who he is, what he costs, his 2024/25 score and why, and how 2025/26 went.
 import { ReactNode, useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { api, ApiError, Profile as P } from "../lib/api";
 import { useCompare } from "../lib/compare";
 import { eur, num, RELIABILITY_TEXT, ROLE_NAMES, signed } from "../lib/format";
@@ -9,6 +9,7 @@ import ValueChart from "../components/ValueChart";
 import SimilarPlayers from "../components/SimilarPlayers";
 import { valueTrend } from "../lib/valueTrend";
 import PageHeader from "../components/PageHeader";
+import BackButton from "../components/BackButton";
 import PositionPitch from "../components/PositionPitch";
 
 function Section({ title, note, children }: { title: string; note?: ReactNode; children: ReactNode }) {
@@ -54,7 +55,7 @@ export default function Profile() {
     api.player(Number(id)).then(setP).catch((e) => setError(e instanceof ApiError ? e.message : "Could not load the player."));
   }, [id]);
 
-  if (error) return <div><p role="alert" className="text-signal">{error}</p><Link to="/players" className="mt-3 inline-block underline">Back to players</Link></div>;
+  if (error) return <div><p role="alert" className="text-signal">{error}</p><BackButton fallback="/players" fallbackName="players" className="mt-3" /></div>;
   if (!p) return <p className="text-ink-soft">Loading…</p>;
 
   const s = p.scores[0];
@@ -64,7 +65,7 @@ export default function Profile() {
 
   return (
     <div className="space-y-6">
-      <Link to="/players" className="text-sm text-ink-soft underline-offset-4 hover:underline">Players</Link>
+      <BackButton fallback="/players" fallbackName="players" />
       <PageHeader
         title={p.name}
         subtitle={<>{[s ? ROLE_NAMES[s.role] : p.primary_position, p.age != null && `${p.age} years old`, p.nationality].filter(Boolean).join(", ")}
