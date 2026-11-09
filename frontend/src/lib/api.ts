@@ -209,6 +209,32 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   return body as T;
 }
 
+/** Download a file the server makes (e.g. a PDF report) and save it in the browser. */
+async function download(path: string, fallbackName: string): Promise<void> {
+  const headers = new Headers();
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+  let res: Response;
+  try {
+    res = await fetch(BASE + path, { headers });
+  } catch {
+    throw new ApiError(0, "The ScoutIQ server is not reachable. Check that Docker is running.");
+  }
+  if (!res.ok) {
+    if (res.status === 401 && token) onUnauthorized();
+    const body = await res.json().catch(() => null);
+    throw new ApiError(res.status, body?.error?.message ?? `Download failed (${res.status})`);
+  }
+  const name = /filename="([^"]+)"/.exec(res.headers.get("Content-Disposition") ?? "")?.[1] ?? fallbackName;
+  const url = URL.createObjectURL(await res.blob());
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
 export const api = {
   register: (email: string, password: string) =>
     request<User>("/auth/register", { method: "POST", body: JSON.stringify({ email, password }) }),
@@ -227,6 +253,7 @@ export const api = {
   scenarios: () => request<ScenarioSummary[]>("/scenarios"),
   scenario: (id: number) => request<Scenario>(`/scenarios/${id}`),
   deleteScenario: (id: number) => request<void>(`/scenarios/${id}`, { method: "DELETE" }),
+  downloadScenarioPdf: (id: number) => download(`/scenarios/${id}/report.pdf`, `scoutiq-scenario-${id}.pdf`),
   leagues: () => request<League[]>("/leagues"),
   players: (q: PlayerQuery) => request<PlayerPage>(`/players${query({ ...q })}`),
   player: (id: number) => request<Profile>(`/players/${id}`),

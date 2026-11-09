@@ -246,3 +246,50 @@ def test_build_scenarios_still_reopen_as_build(seeded):
     assert r.status_code == 201, r.text
     back = c.get(f"/api/v1/scenarios/{r.json()['id']}").json()
     assert back["mode"] == "build" and "club_name" in back and back["club_name"] is None
+
+
+# --- PDF report --------------------------------------------------------------------------------
+
+def _pdf_text(data: bytes) -> str:
+    from pypdf import PdfReader
+    import io
+    return "\n".join(page.extract_text() for page in PdfReader(io.BytesIO(data)).pages)
+
+
+def test_pdf_report_for_an_improvement_plan(seeded):
+    c, own, squad, kid = seeded
+    saved = c.post("/api/v1/scenarios/improve", json={
+        "name": "Own Town: Šimić-style plan", "club_id": own.id, "request": _improve_body(squad, kid)}).json()
+    r = c.get(f"/api/v1/scenarios/{saved['id']}/report.pdf")
+    assert r.status_code == 200
+    assert r.headers["content-type"] == "application/pdf"
+    assert 'filename="scoutiq-Own-Town-' in r.headers["content-disposition"]
+    assert r.content.startswith(b"%PDF")
+    text = _pdf_text(r.content)
+    assert "Šimić-style" in text and "Own Town FC" in text and "Signings" in text
+    for p in saved["result"]["team"]["players"]:
+        assert p["name"] in text
+    signing = next(p for p in saved["result"]["team"]["players"] if p["signing"])
+    assert "Replaces" in text and signing["name"] in text
+
+
+def test_pdf_report_for_a_build_team_and_for_no_team(seeded):
+    c, own, squad, kid = seeded
+    ok = c.post("/api/v1/scenarios", json={"name": "Build", "request": {"formation": "4-3-3", "budget_eur": 50_000_000}}).json()
+    text = _pdf_text(c.get(f"/api/v1/scenarios/{ok['id']}/report.pdf").content)
+    assert "Squad-builder team" in text and "The starting XI" in text and "average age" in text
+    bad = c.post("/api/v1/scenarios", json={"name": "Nothing fits", "request": {"formation": "4-3-3", "budget_eur": 1}}).json()
+    r = c.get(f"/api/v1/scenarios/{bad['id']}/report.pdf")
+    assert r.status_code == 200 and "No team was possible" in _pdf_text(r.content)
+
+
+def test_pdf_report_is_private(seeded):
+    c, own, squad, kid = seeded
+    sid = c.post("/api/v1/scenarios", json={"name": "Mine", "request": {"formation": "4-3-3", "budget_eur": 50_000_000}}).json()["id"]
+    auth = c.headers.pop("Authorization")
+    assert c.get(f"/api/v1/scenarios/{sid}/report.pdf").status_code == 401
+    c.post("/api/v1/auth/register", json={"email": "other-pdf@example.com", "password": "Another-pass-2026"})
+    tok = c.post("/api/v1/auth/login", data={"username": "other-pdf@example.com", "password": "Another-pass-2026"}).json()["access_token"]
+    c.headers["Authorization"] = f"Bearer {tok}"
+    assert c.get(f"/api/v1/scenarios/{sid}/report.pdf").status_code == 404
+    c.headers["Authorization"] = auth

@@ -3,6 +3,8 @@
 Both squad-builder teams (mode "build") and club-improvement plans (mode "improve") are stored.
 """
 
+import re
+
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -11,7 +13,8 @@ from app.api.deps import get_current_user
 from app.api.improve import improve as run_improve
 from app.api.optimize import run_optimization
 from app.db.session import get_db
-from app.models import AppUser, Club, Scenario, ScenarioPlayer
+from app.models import AppUser, Club, League, Scenario, ScenarioPlayer
+from app.reports.pdf import scenario_pdf
 from app.schemas.optimize import ImproveRequest, ImproveResponse, OptimizeRequest, OptimizeResponse
 from app.schemas.scenario import AnyScenarioOut, ImproveScenarioCreate, ImproveScenarioOut, ScenarioCreate, ScenarioOut, ScenarioSummary
 
@@ -94,6 +97,19 @@ def list_own(db: Session = Depends(get_db), user: AppUser = Depends(get_current_
 @router.get("/{scenario_id}", response_model=AnyScenarioOut)
 def reopen(scenario_id: int, db: Session = Depends(get_db), user: AppUser = Depends(get_current_user)) -> dict:
     return _out(_own(db, user, scenario_id))
+
+
+@router.get("/{scenario_id}/report.pdf", response_class=Response,
+            responses={200: {"content": {"application/pdf": {}}, "description": "A one-page PDF report"}})
+def report(scenario_id: int, db: Session = Depends(get_db), user: AppUser = Depends(get_current_user)) -> Response:
+    """The saved scenario as a one-page A4 PDF: key figures, the XI on a pitch, signings, requirements."""
+    s = _out(_own(db, user, scenario_id))
+    data = {**s, "request": s["request"].model_dump(mode="json"), "result": s["result"].model_dump(mode="json")}
+    ids = data["request"].get("league_ids") or []
+    names = {lg.id: lg.name for lg in db.scalars(select(League).where(League.id.in_(ids)))} if ids else {}
+    slug = re.sub(r"[^A-Za-z0-9]+", "-", s["name"]).strip("-")[:60] or "scenario"
+    return Response(scenario_pdf(data, names), media_type="application/pdf",
+                    headers={"Content-Disposition": f'attachment; filename="scoutiq-{slug}.pdf"'})
 
 
 @router.delete("/{scenario_id}", status_code=status.HTTP_204_NO_CONTENT)
