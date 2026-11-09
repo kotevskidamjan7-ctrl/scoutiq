@@ -3,7 +3,7 @@
 from datetime import date, datetime
 from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class LeagueOut(BaseModel):
@@ -213,3 +213,47 @@ class DashboardOut(BaseModel):
     value_picks: dict[str, list[PlayerRowOut]]
     value_for_money_shown: dict[str, bool]
     budget_picks: dict[str, dict[str, list[PlayerRowOut]]]  # price cap in EUR -> role -> players
+
+
+# --- similar players ---------------------------------------------------------------------------
+
+class Difference(BaseModel):
+    metric: str
+    diff: float  # percentile points, the similar player minus the chosen player
+
+
+class SimilarPlayer(BaseModel):
+    player_id: int
+    name: str
+    age: int | None
+    nationality: str | None
+    role: str
+    league_id: int
+    league: str
+    club: str
+    score: float | None
+    score_adjusted: float | None
+    value_for_money: float | None
+    reliability: str
+    minutes: int
+    minutes_next: int
+    price_eur: int | None
+    similarity: float = Field(..., description="100 minus the weighted RMS percentile difference")
+    stronger_in: list[Difference]
+    weaker_in: list[Difference]
+
+
+class SimilarTarget(BaseModel):
+    player_id: int
+    name: str
+    role: str
+    league: str
+    score: float | None
+    price_eur: int | None
+
+
+class SimilarOut(BaseModel):
+    player: SimilarTarget
+    metrics: list[str]          # the metrics compared, most important first
+    candidates: int             # players who passed the filters
+    results: list[SimilarPlayer]

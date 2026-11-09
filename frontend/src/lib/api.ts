@@ -163,6 +163,22 @@ export interface Interpretation {
 
 export interface Comparison { players: Profile[]; same_role: boolean; }
 
+export interface Difference { metric: string; diff: number; }
+export interface SimilarPlayer {
+  player_id: number; name: string; age: number | null; nationality: string | null; role: Role;
+  league_id: number; league: string; club: string; score: number | null; score_adjusted: number | null;
+  value_for_money: number | null; reliability: string; minutes: number; minutes_next: number;
+  price_eur: number | null; similarity: number; stronger_in: Difference[]; weaker_in: Difference[];
+}
+export interface SimilarOut {
+  player: { player_id: number; name: string; role: Role; league: string; score: number | null; price_eur: number | null };
+  metrics: string[]; candidates: number; results: SimilarPlayer[];
+}
+export interface SimilarQuery {
+  limit?: number; max_price_eur?: number | null; max_age?: number | null; league_id?: number[];
+  exclude_id?: number[]; score?: "within" | "adjusted"; include_low?: boolean;
+}
+
 function query(params: Record<string, unknown>): string {
   const u = new URLSearchParams();
   for (const [k, v] of Object.entries(params)) {
@@ -253,6 +269,7 @@ export const api = {
   scenarios: () => request<ScenarioSummary[]>("/scenarios"),
   scenario: (id: number) => request<Scenario>(`/scenarios/${id}`),
   deleteScenario: (id: number) => request<void>(`/scenarios/${id}`, { method: "DELETE" }),
+  similar: (id: number, q: SimilarQuery = {}) => request<SimilarOut>(`/players/${id}/similar${query({ ...q })}`),
   downloadScenarioPdf: (id: number) => download(`/scenarios/${id}/report.pdf`, `scoutiq-scenario-${id}.pdf`),
   leagues: () => request<League[]>("/leagues"),
   players: (q: PlayerQuery) => request<PlayerPage>(`/players${query({ ...q })}`),

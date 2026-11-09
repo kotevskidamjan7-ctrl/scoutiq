@@ -7,8 +7,8 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
 from app.db.session import get_db
-from app.players import dashboard, service
-from app.schemas.players import CompareOut, DashboardOut, LeagueOut, PlayerPage, ProfileOut
+from app.players import dashboard, service, similar
+from app.schemas.players import CompareOut, DashboardOut, LeagueOut, PlayerPage, ProfileOut, SimilarOut
 
 router = APIRouter(tags=["players"], dependencies=[Depends(get_current_user)])
 
@@ -70,6 +70,27 @@ def get_profile(player_id: int, db: Session = Depends(get_db)) -> dict:
     if p is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Player not found")
     return p
+
+
+@router.get("/players/{player_id}/similar", response_model=SimilarOut)
+def get_similar(
+    player_id: int,
+    limit: int = Query(10, ge=1, le=50),
+    max_price_eur: int | None = Query(None, ge=0, description="Highest Transfermarkt value"),
+    max_age: int | None = Query(None, ge=16, le=45),
+    league_id: list[int] | None = Query(None, description="Only these leagues"),
+    exclude_id: list[int] | None = Query(None, description="Players to leave out, e.g. the club's own squad"),
+    score: Literal["within", "adjusted"] = "within",
+    include_low: bool = Query(False, description="Include players with low reliability (under 900 minutes)"),
+    db: Session = Depends(get_db),
+) -> dict:
+    """The players whose 2024/25 statistical profile is closest, in the same role (nearest neighbours on
+    weighted per-metric percentiles). Similar style, not necessarily similar level: see the scores."""
+    out = similar.similar(db, player_id, limit=limit, max_price_eur=max_price_eur, max_age=max_age,
+                          league_ids=league_id, exclude_ids=exclude_id, score=score, include_low=include_low)
+    if out is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="This player has no 2024/25 score to compare")
+    return out
 
 
 @router.get("/stats/dashboard", response_model=DashboardOut)

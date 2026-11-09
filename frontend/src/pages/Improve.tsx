@@ -2,13 +2,14 @@
 import { FormEvent, ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { api, ApiError, Club, ImproveRequest, ImproveResponse, PlayerRow, Role, SquadPlayer } from "../lib/api";
-import { eur, ROLE_NAMES } from "../lib/format";
+import { eur, parseMoney, ROLE_NAMES } from "../lib/format";
 import { FORMATIONS } from "../lib/formations";
 import { applyImproveSuggestion, DEFAULT_IMPROVE, describeImprove, fromImproveRequest, ImproveForm, improveFromInterpretation, ROLE_COUNTS, toImproveRequest } from "../lib/improve";
 import AssistantBox from "../components/AssistantBox";
 import ScopeChips from "../components/ScopeChips";
 import { AcrossLeaguesToggle, useAdjustment } from "../lib/adjustment";
 import ImproveResult from "../components/ImproveResult";
+import SimilarPlayers from "../components/SimilarPlayers";
 import Toast from "../components/Toast";
 import PageHeader from "../components/PageHeader";
 
@@ -84,13 +85,15 @@ export default function Improve() {
   const location = useLocation();
   const reopened = (location.state as { improve?: ImproveRequest; clubId?: number | null; name?: string } | null);
   const [reopenedName, setReopenedName] = useState<string | null>(null);
+  const [replacing, setReplacing] = useState<SquadPlayer | null>(null);   // a player who left: show similar players
+  const replaceRef = useRef<HTMLElement>(null);
 
   const set = <K extends keyof ImproveForm>(k: K, v: ImproveForm[K]) => setForm((f) => ({ ...f, [k]: v }));
   const adjustment = useAdjustment();
   const toggle = (s: Set<number>, id: number) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; };
 
   async function pickClub(c: Club) {
-    setClub(c); setResult(null); setFailure(null); setReopenedName(null);
+    setClub(c); setResult(null); setFailure(null); setReopenedName(null); setReplacing(null);
     try {
       const s = await api.squad(c.id);
       setSquad(s.players);
@@ -202,16 +205,24 @@ export default function Improve() {
                 const on = inSquad.has(p.player_id);
                 const unscored = p.score == null;
                 return (
-                  <li key={p.player_id} className={`flex items-center gap-2 px-3 py-1.5 text-sm ${on ? "" : "opacity-50"}`}>
+                  <li key={p.player_id} className="flex items-center gap-2 px-3 py-1.5 text-sm">
                     <input type="checkbox" className="h-4 w-4 accent-board" checked={on} aria-label={`${p.name} is in the squad`}
                            onChange={() => { setInSquad((s) => toggle(s, p.player_id)); setLocked((s) => { const n = new Set(s); n.delete(p.player_id); return n; }); }} />
-                    <span className="min-w-0 flex-1">
+                    <span className={`min-w-0 flex-1 ${on ? "" : "opacity-50"}`}>
                       <span className="block truncate font-medium">{p.name}</span>
                       <span className="block text-xs text-ink-faint">
                         {unscored ? "No 2024/25 score, left out" : `${ROLE_NAMES[p.role!]}, age ${p.age ?? "–"}`}
                       </span>
                     </span>
-                    <span className="num w-10 text-right font-semibold">{unscored ? "–" : p.score!.toFixed(0)}</span>
+                    <span className={`num w-10 text-right font-semibold ${on ? "" : "opacity-50"}`}>{unscored ? "–" : p.score!.toFixed(0)}</span>
+                    {!on && !unscored ? (
+                      <button type="button" onClick={() => { setReplacing(p); setTimeout(() => replaceRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50); }}
+                              aria-pressed={replacing?.player_id === p.player_id}
+                              className={["w-20 rounded px-2 py-1 text-xs font-semibold",
+                                replacing?.player_id === p.player_id ? "bg-marker text-ink" : "border border-board text-ink hover:bg-surface-sunk"].join(" ")}>
+                        Replace
+                      </button>
+                    ) : (
                     <button type="button" aria-pressed={locked.has(p.player_id)}
                             disabled={!on || unscored || (!locked.has(p.player_id) && roleFull(p.role))}
                             title={!locked.has(p.player_id) && roleFull(p.role) ? `${form.formation} has no more room for this position` : undefined}
@@ -220,6 +231,7 @@ export default function Improve() {
                               locked.has(p.player_id) ? "bg-board text-chalk" : "border border-rule text-ink-soft hover:bg-surface-sunk"].join(" ")}>
                       {locked.has(p.player_id) ? "Must start" : "Lock"}
                     </button>
+                    )}
                   </li>
                 );
               })}
@@ -335,6 +347,30 @@ export default function Improve() {
       </form>
 
       <section aria-label="Result" className="min-w-0 space-y-6">
+        {replacing && club && (
+          <section ref={replaceRef} aria-label={`Replacements for ${replacing.name}`} className="sheet scroll-mt-6">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h2 className="condensed text-2xl font-bold">Replacements for {replacing.name}</h2>
+                <p className="text-sm text-ink-soft">
+                  {ROLE_NAMES[replacing.role!]}s who play most like him, up to your budget, outside your squad.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button type="button" className="btn-quiet"
+                        onClick={() => { const f = { ...form, signingRoles: [replacing.role!] }; setForm(f); setReplacing(null); run(f); }}>
+                  Find the best {ROLE_NAMES[replacing.role!].toLowerCase()} signing
+                </button>
+                <button type="button" className="btn-quiet" onClick={() => setReplacing(null)}>Close</button>
+              </div>
+            </div>
+            <div className="mt-4">
+              <SimilarPlayers key={replacing.player_id} playerId={replacing.player_id} compact limit={8}
+                              maxPriceEur={(() => { const b = parseMoney(form.budget); return b && b > 0 ? b : null; })()}
+                              excludeIds={squad.map((q) => q.player_id)} />
+            </div>
+          </section>
+        )}
         {reopenedName && (
           <p className="rounded-md border border-rule bg-surface-raised px-4 py-3 text-sm">
             Reopened <span className="font-semibold">{reopenedName}</span>. The squad and players are today's data, so the

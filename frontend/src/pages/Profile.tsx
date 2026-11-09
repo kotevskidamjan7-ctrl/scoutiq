@@ -6,6 +6,8 @@ import { useCompare } from "../lib/compare";
 import { eur, num, RELIABILITY_TEXT, ROLE_NAMES, signed } from "../lib/format";
 import PercentileBars from "../components/PercentileBars";
 import ValueChart from "../components/ValueChart";
+import SimilarPlayers from "../components/SimilarPlayers";
+import { valueTrend } from "../lib/valueTrend";
 import PageHeader from "../components/PageHeader";
 import PositionPitch from "../components/PositionPitch";
 
@@ -17,6 +19,19 @@ function Section({ title, note, children }: { title: string; note?: ReactNode; c
       <div className="mt-4">{children}</div>
     </section>
   );
+}
+
+function trendNote(points: { date: string; value_eur: number }[]): string | undefined {
+  const t = valueTrend(points);
+  if (!t) return undefined;
+  const parts: string[] = [];
+  if (t.changePct != null) {
+    parts.push(t.changePct === 0 ? "Unchanged over the last year"
+      : `${t.changePct > 0 ? "Up" : "Down"} ${Math.abs(t.changePct)}% over the last year (${eur(t.yearAgo!.value_eur)} to ${eur(t.latest.value_eur)})`);
+  }
+  parts.push(t.belowPeakPct <= 0 ? "now at his highest value" : `peak ${eur(t.peak.value_eur)} in ${t.peak.date.slice(0, 4)}, ${t.belowPeakPct}% higher than now`);
+  const text = parts.join("; ");
+  return text[0].toUpperCase() + text.slice(1) + ". Transfermarkt estimates, not transfer fees.";
 }
 
 const STAT_ROWS: [string, string][] = [
@@ -128,6 +143,13 @@ export default function Profile() {
             </Section>
           )}
 
+          {s && (
+            <Section title="Similar players"
+                     note={`${ROLE_NAMES[s.role]}s whose 2024/25 statistics look most like his. Useful for finding a cheaper or younger alternative.`}>
+              <SimilarPlayers playerId={p.id} />
+            </Section>
+          )}
+
           <Section title="Recent form 2025/26"
                    note="Basic league numbers only. The score above is from 2024/25, the last season with full statistics.">
             {rf.rows.length === 0 ? (
@@ -162,7 +184,7 @@ export default function Profile() {
           </Section>
 
           {p.value_history.length > 0 && (
-            <Section title="Market value">
+            <Section title="Market value" note={trendNote(p.value_history)}>
               <ValueChart points={p.value_history} />
             </Section>
           )}
