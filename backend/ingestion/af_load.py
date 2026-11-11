@@ -52,6 +52,10 @@ NAME_THRESHOLD = 85          # same birth date, name alone
 LEAGUE_NAME_THRESHOLD = 60   # same birth date AND the player has Transfermarkt minutes in this league-season
 MINUTES_REL_TOL = 0.15       # API vs Transfermarkt league minutes must agree within 15% ...
 MINUTES_ABS_TOL = 90         # ... or within 90 minutes (one match), whichever is looser
+# Leagues whose season ends with play-off rounds. API-Football counts them as league matches;
+# Transfermarkt's league minutes cover only the regular season. Belgium 2024/25: 30 rounds, then
+# 10 play-off rounds (champions' and Europe play-offs; the relegation play-off has 6).
+PLAYOFF_ROUNDS = {"BE1": 10}
 
 
 # ---------- parsing ----------
@@ -190,9 +194,14 @@ def combine(lines: list[AfEntry]) -> AfEntry:
     return AfEntry(**{**base.__dict__, "stats": stats})
 
 
-def minutes_agree(api_minutes: int, tm_minutes: int) -> bool:
+def minutes_agree(api_minutes: int, tm_minutes: int, playoff_rounds: int = 0) -> bool:
+    """Do the two sources describe the same season? With play-offs, API-Football may also hold up to
+    `playoff_rounds` full matches more than Transfermarkt (never fewer: that means missing games)."""
     diff = abs(api_minutes - tm_minutes)
-    return diff <= MINUTES_ABS_TOL or diff <= MINUTES_REL_TOL * max(api_minutes, tm_minutes)
+    if diff <= MINUTES_ABS_TOL or diff <= MINUTES_REL_TOL * max(api_minutes, tm_minutes):
+        return True
+    extra = api_minutes - tm_minutes
+    return playoff_rounds > 0 and 0 < extra <= playoff_rounds * 90 + MINUTES_ABS_TOL
 
 
 # ---------- linking ----------
@@ -244,6 +253,12 @@ class AfLoadReport:
     held: list = field(default_factory=list)
     stored: int = 0
     per_league: dict = field(default_factory=dict)
+    # why entries were not stored, per league: {league: {"review": n, "no_tm": n, "held": n, "bad": n}}
+    dropped: dict = field(default_factory=dict)
+
+    def drop(self, league: str, reason: str) -> None:
+        d = self.dropped.setdefault(league, {"review": 0, "no_tm": 0, "held": 0, "bad": 0})
+        d[reason] += 1
 
     def print(self) -> None:
         print("\nAPI-Football load summary")
@@ -258,9 +273,22 @@ class AfLoadReport:
         for line in self.held[:8]:
             print(f"    {line}")
         print(f"  stat rows stored:               {self.stored}")
-        print("  per league: stored / with >= 900 minutes")
-        for name, (stored, regulars) in sorted(self.per_league.items()):
-            print(f"    {name:<16} {stored:>5} / {regulars}")
+        print("  per league: stored, with >= 900 minutes, and why the rest were not stored")
+        print(f"    {'':<20}{'stored':>7}{'900+':>6}{'not linked':>12}{'no TM min.':>12}{'held':>6}")
+        for name in sorted(set(self.per_league) | set(self.dropped)):
+            stored, regulars = self.per_league.get(name, (0, 0))
+            d = self.dropped.get(name, {})
+            print(f"    {name:<20}{stored:>7}{regulars:>6}{d.get('review', 0):>12}{d.get('no_tm', 0):>12}{d.get('held', 0):>6}")
+        for name, d in sorted(self.dropped.items()):
+            if d.get("held", 0) > 20:  # many held in one league: probably a systematic difference, show examples
+                lines = [h for h in self.held if f"({name})" in h]
+                api = [int(h.split("API ")[1].split(" ")[0]) for h in lines]
+                tm = [int(h.split("TM ")[1].split(" ")[0]) for h in lines]
+                more = sum(a > t for a, t in zip(api, tm))
+                print(f"\n  {name}: {len(lines)} held; API-Football has more minutes in {more}, fewer in {len(lines) - more}."
+                      f" Total API {sum(api):,} vs TM {sum(tm):,} min. Examples:")
+                for h in lines[:10]:
+                    print(f"    {h}")
 
 
 def _player_record_files(client: ApiFootballClient, season: int) -> list[Path]:
@@ -383,6 +411,7 @@ def load_cached(session: Session, client: ApiFootballClient, leagues: list[Leagu
                 report.linked_by_method[how] = report.linked_by_method.get(how, 0) + 1
             else:
                 report.to_review += 1
+                report.drop(league.name, "review")
                 if ext not in reviewed and ext not in queued:
                     session.add(LinkCandidate(source_id=af.id, external_id=ext, external_name=e.full_name or e.name,
                                               candidate_player_id=best_id, similarity=score or None, reason=how[:100]))
@@ -392,14 +421,17 @@ def load_cached(session: Session, client: ApiFootballClient, leagues: list[Leagu
         # 2. quality gates
         if is_inconsistent(e.stats):
             report.inconsistent += 1
+            report.drop(league.name, "bad")
             continue
         key = (player_id, league.id)
         if key not in tm_main or tm_total[key] == 0:
             report.no_tm_minutes += 1
+            report.drop(league.name, "no_tm")
             continue
         api_minutes = e.stats["minutes"] or 0
-        if not minutes_agree(api_minutes, tm_total[key]):
+        if not minutes_agree(api_minutes, tm_total[key], PLAYOFF_ROUNDS.get(league.tm_competition_id or "", 0)):
             report.held.append(f"{e.name} ({league.name}): API {api_minutes} vs TM {tm_total[key]} min [{e.origin}]")
+            report.drop(league.name, "held")
             continue
 
         # 3. store, attributed to the Transfermarkt club with most league minutes

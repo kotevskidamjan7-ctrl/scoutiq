@@ -150,6 +150,16 @@ def test_minutes_tolerance_is_relative_or_one_match():
     assert not minutes_agree(399, 1042)   # partial season
 
 
+def test_minutes_agree_allows_playoff_rounds_only_on_top():
+    # Belgium: API-Football includes up to 10 play-off rounds, Transfermarkt only the regular season
+    assert not minutes_agree(2571, 1824)                  # without play-offs this is too far apart
+    assert minutes_agree(2571, 1824, playoff_rounds=10)    # +747 minutes: play-offs
+    assert minutes_agree(1550, 1270, playoff_rounds=10)
+    assert minutes_agree(1824 + 990, 1824, playoff_rounds=10)       # 10 full matches + one match of slack
+    assert not minutes_agree(1824 + 1100, 1824, playoff_rounds=10)  # more than the play-offs can explain
+    assert not minutes_agree(1755, 2112, playoff_rounds=10)         # fewer minutes: games are missing
+
+
 def test_combine_sums_clubs_and_weights_rating():
     a = _entry(team=1, minutes=900, goals=3, passes_key=None, rating=7.0)
     b = _entry(team=2, minutes=300, goals=1, passes_key=4, rating=6.0)
