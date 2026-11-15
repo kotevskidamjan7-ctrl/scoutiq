@@ -223,7 +223,7 @@ def e3_league(db) -> dict:
     tm["pct"] = tm.groupby(["league_id", "season", "role"])["ga90"].rank(pct=True) * 100
     a = tm[tm["season"] == SCORED_SEASON].set_index("player_id")
     b = tm[tm["season"] == RECENT].set_index("player_id")
-    both = a.join(b, lsuffix="_a", rsuffix="_b", how="inner")
+    both = a.add_suffix("_a").join(b.add_suffix("_b"), how="inner")
     both = both[both["role_a"] == both["role_b"]]
     movers = both[both["league_id_a"] != both["league_id_b"]].copy()
 
@@ -353,28 +353,34 @@ def e6_budgets(db, cands_adj: list[Candidate], cands: list[Candidate]) -> dict:
         lg = league_of[club]
         if lg not in smallest or v < value[smallest[lg]]:
             smallest[lg] = club
-    small = []
-    for lg, club in sorted(smallest.items()):
-        sq = squad(db, club)
-        if not sq:
-            continue
-        owned = [p["player_id"] for p in sq["players"] if p["score"] is not None]
-        if len(owned) < 11:
-            small.append({"league": lg, "club": sq["club"]["name"], "status": "too few scored players", "owned": len(owned)})
-            continue
-        res = improve(ImproveRequest(formation="4-3-3", budget_eur=500_000, owned_player_ids=owned, max_signings=2,
-                                     score="adjusted"), db)
-        if res.team is None:
-            reason = (res.diagnosis.reason if res.diagnosis else "") or "no plan"
-            small.append({"league": lg, "club": sq["club"]["name"], "status": f"no plan: {reason}", "owned": len(owned)})
-            continue
-        signings = [p for p in res.team.players if p.signing]
-        small.append({"league": lg, "club": sq["club"]["name"], "owned": len(owned), "status": "ok",
-                      "gain": round(res.team.total_score - res.current.total_score, 1) if res.current else None,
-                      "spent": res.team.cost_eur,
-                      "signings": [{"name": p.name, "league": p.league, "price": p.price_eur, "score": p.score}
-                                   for p in signings]})
-    return {"budgets_433": rows, "small_clubs_500k": small}
+    def small_clubs(age_max: int | None) -> list[dict]:
+        out = []
+        for lg, club in sorted(smallest.items()):
+            sq = squad(db, club)
+            if not sq:
+                continue
+            owned = [p["player_id"] for p in sq["players"] if p["score"] is not None]
+            if len(owned) < 11:
+                out.append({"league": lg, "club": sq["club"]["name"], "status": "too few scored players", "owned": len(owned)})
+                continue
+            res = improve(ImproveRequest(formation="4-3-3", budget_eur=500_000, owned_player_ids=owned, max_signings=2,
+                                         score="adjusted", age_max=age_max), db)
+            if res.team is None:
+                reason = (res.diagnosis.reason if res.diagnosis else "") or "no plan"
+                out.append({"league": lg, "club": sq["club"]["name"], "status": f"no plan: {reason}", "owned": len(owned)})
+                continue
+            signings = [p for p in res.team.players if p.signing]
+            out.append({"league": lg, "club": sq["club"]["name"], "owned": len(owned), "status": "ok",
+                        "gain": round(res.team.total_score - res.current.total_score, 1) if res.current else None,
+                        "spent": res.team.cost_eur,
+                        "signings": [{"name": p.name, "league": p.league, "price": p.price_eur, "score": p.score,
+                                      "age": p.age} for p in signings]})
+        return out
+
+    # squads from the data (end of 2025/26), not the live API squads, so the result is reproducible and costs nothing
+    small = small_clubs(None)
+    small_30 = small_clubs(30)
+    return {"budgets_433": rows, "small_clubs_500k": small, "small_clubs_500k_age_max_30": small_30}
 
 
 # ---------- report ----------
@@ -451,11 +457,21 @@ def markdown(r: dict) -> str:
                     [[eur(x["budget"]), x["status"], x.get("score_adjusted"), eur(x.get("cost")), eur(x.get("max_price")),
                       eur(x.get("median_price")), x.get("avg_league_strength"), x.get("premier_league_players"),
                       ", ".join(f"{k} {v}" for k, v in (x.get("leagues") or {}).items()) or x.get("reason")] for x in e6["budgets_433"]]))
-    md.append("\n\n**The smallest club in each league with EUR 500k and at most 2 signings:**\n")
-    md.append(table(["League", "Club", "Gain", "Spent", "Signings"],
-                    [[x["league"], x["club"], x.get("gain"), eur(x.get("spent")),
-                      "; ".join(f"{s['name']} ({s['league']}, {eur(s['price'])}, {s['score']})" for s in x.get("signings", []))
-                      or x["status"]] for x in e6["small_clubs_500k"]]))
+    def small_table(rows):
+        return table(["League", "Club", "Gain", "Spent", "Signings (league, price, score, age)"],
+                     [[x["league"], x["club"], x.get("gain"), eur(x.get("spent")),
+                       "; ".join(f"{s['name']} ({s['league']}, {eur(s['price'])}, {s['score']}, {s.get('age', '–')})"
+                                 for s in x.get("signings", [])) or x["status"]] for x in rows])
+
+    md.append("\n\n**The smallest club in each league with EUR 500k and at most 2 signings** (squads as in the data, "
+              "end of 2025/26):\n")
+    md.append(small_table(e6["small_clubs_500k"]))
+    ages = [s["age"] for x in e6["small_clubs_500k"] for s in x.get("signings", []) if s.get("age") is not None]
+    if ages:
+        md.append(f"\n\nAverage age of these signings: {statistics.mean(ages):.1f}. Old players have low market values but "
+                  "can still have strong 2024/25 statistics; the score does not model age. **The same with an oldest age "
+                  "of 30** (the existing filter):\n")
+        md.append(small_table(e6["small_clubs_500k_age_max_30"]))
     return "\n".join(md) + "\n"
 
 
