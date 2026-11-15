@@ -12,8 +12,10 @@ from app.optimization.candidates import load_candidates
 from app.optimization.model import FORMATIONS, Team, formation_request
 from app.optimization.solver import solve
 from app.players import clubs
+from app.players.current_squad import SquadUnavailable, current_squad
 from app.schemas.optimize import (
     ClubOut,
+    CurrentSquadOut,
     Diagnosis,
     ImprovePlayerOut,
     ImproveRequest,
@@ -32,6 +34,19 @@ router = APIRouter(tags=["improve"], dependencies=[Depends(get_current_user)])
 def list_clubs(q: str | None = Query(None, max_length=60), db: Session = Depends(get_db)) -> list[dict]:
     """Clubs in the supported leagues whose name contains q."""
     return clubs.search_clubs(db, q)
+
+
+@router.post("/clubs/{club_id}/squad/current", response_model=CurrentSquadOut)
+def club_current_squad(club_id: int, db: Session = Depends(get_db)) -> dict:
+    """The squad as it is now, from API-Football (1 request per club per week; cached), matched to the data.
+    Use it when the data's squad (Transfermarkt, June 2026) misses recent transfers."""
+    try:
+        out = current_squad(db, club_id)
+    except SquadUnavailable as e:
+        raise HTTPException(status_code=e.status, detail=str(e))
+    if out is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Club not found")
+    return out
 
 
 @router.get("/clubs/{club_id}/squad", response_model=SquadOut)

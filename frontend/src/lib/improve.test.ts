@@ -80,3 +80,13 @@ describe("describeImprove", () => {
     expect(describeImprove("Brentford", { ...req, budget_eur: 0 }, 0)).toBe("Brentford: best XI as it is (4-3-3)");
   });
 });
+
+describe("players who left the club", () => {
+  it("are sent as left even though they are not in the list", () => {
+    const squad = [sp(1), sp(2)];
+    const { req } = toImproveRequest(DEFAULT_IMPROVE, squad, new Set([1, 2]), new Set(), [], [7, 8]);
+    expect(req!.left_player_ids!.sort()).toEqual([7, 8]);
+    const { req: r2 } = toImproveRequest(DEFAULT_IMPROVE, squad, new Set([1]), new Set(), [], [7]);
+    expect(r2!.left_player_ids!.sort()).toEqual([2, 7]);
+  });
+});

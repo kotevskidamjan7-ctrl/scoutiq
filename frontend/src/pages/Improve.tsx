@@ -1,7 +1,7 @@
 // Club improvement (Mode B): start from your squad, find the signings that improve the starting XI most.
 import { FormEvent, ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
-import { api, ApiError, Club, ImproveRequest, ImproveResponse, PlayerRow, Role, SquadPlayer } from "../lib/api";
+import { api, ApiError, Club, ImproveRequest, ImproveResponse, PlayerRow, Role, SquadPlayer, CurrentSquad } from "../lib/api";
 import { eur, parseMoney, ROLE_NAMES } from "../lib/format";
 import { FORMATIONS } from "../lib/formations";
 import { applyImproveSuggestion, DEFAULT_IMPROVE, describeImprove, fromImproveRequest, ImproveForm, improveFromInterpretation, ROLE_COUNTS, toImproveRequest } from "../lib/improve";
@@ -92,21 +92,48 @@ export default function Improve() {
     if (reopened?.fromShortlist) setForm((f) => ({ ...f, fromShortlist: true }));
   }, [reopened]);
   const [reopenedName, setReopenedName] = useState<string | null>(null);
-  const [replacing, setReplacing] = useState<SquadPlayer | null>(null);   // a player who left: show similar players
+  const [replacing, setReplacing] = useState<SquadPlayer | null>(null);
+  // the squad as it is now (API-Football); players who have left are hidden but still never suggested as signings
+  const [current, setCurrent] = useState<CurrentSquad | null>(null);
+  const [departed, setDeparted] = useState<number[]>([]);
+  const [fallback, setFallback] = useState<string | null>(null);   // why the data's (June 2026) squad is shown
+  const [loadingSquad, setLoadingSquad] = useState(false);   // a player who left: show similar players
   const replaceRef = useRef<HTMLElement>(null);
 
   const set = <K extends keyof ImproveForm>(k: K, v: ImproveForm[K]) => setForm((f) => ({ ...f, [k]: v }));
   const adjustment = useAdjustment();
   const toggle = (s: Set<number>, id: number) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; };
 
+  /** The club's squad now (API-Football); if that is not possible, the squad in the data, with the reason. */
+  async function loadSquad(clubId: number): Promise<{ club: Club; players: SquadPlayer[]; cs: CurrentSquad | null; why: string | null }> {
+    try {
+      const cs = await api.currentSquad(clubId);
+      return { club: cs.club, players: cs.players, cs, why: null };
+    } catch (e) {
+      const s = await api.squad(clubId);
+      return { club: s.club, players: s.players, cs: null,
+               why: e instanceof ApiError ? e.message : "API-Football could not be reached." };
+    }
+  }
+
+  function applyLoaded(l: { players: SquadPlayer[]; cs: CurrentSquad | null; why: string | null }) {
+    setCurrent(l.cs);
+    setDeparted(l.cs?.left_ids ?? []);
+    setFallback(l.why);
+  }
+
   async function pickClub(c: Club) {
     setClub(c); setResult(null); setFailure(null); setReopenedName(null); setReplacing(null);
+    setCurrent(null); setDeparted([]); setFallback(null); setSquad([]);
+    setLoadingSquad(true);
     try {
-      const s = await api.squad(c.id);
-      setSquad(s.players);
-      setInSquad(new Set(s.players.filter((p) => p.score != null).map((p) => p.player_id)));
+      const l = await loadSquad(c.id);
+      applyLoaded(l);
+      setSquad(l.players);
+      setInSquad(new Set(l.players.filter((p) => p.score != null).map((p) => p.player_id)));
       setLocked(new Set());
     } catch (e) { setFailure(e instanceof ApiError ? e.message : "Could not load the squad."); }
+    finally { setLoadingSquad(false); }
   }
 
   // reopening a saved plan: the club's squad as it is now, with the saved ticks, locks and settings
@@ -116,9 +143,10 @@ export default function Improve() {
     let live = true;
     (async () => {
       try {
-        const base = reopened?.clubId != null ? await api.squad(reopened.clubId) : null;
+        const base = reopened?.clubId != null ? await loadSquad(reopened.clubId) : null;
         const known = new Set(base?.players.map((p) => p.player_id) ?? []);
-        const extra = [...req.owned_player_ids, ...(req.left_player_ids ?? [])].filter((id) => !known.has(id));
+        const gone = new Set(base?.cs?.left_ids ?? []);   // left the club since: not shown again
+        const extra = [...req.owned_player_ids, ...(req.left_player_ids ?? [])].filter((id) => !known.has(id) && !gone.has(id));
         const added = extra.length ? await api.squadPlayers(extra) : [];
         if (!live) return;
         const squadNow = [...(base?.players ?? []), ...added];
@@ -130,12 +158,14 @@ export default function Improve() {
         const lockedNow = new Set((req.locked_player_ids ?? []).filter((id) => inNow.has(id)));
         const f = fromImproveRequest(req);
         setClub(base?.club ?? null);
+        if (base) applyLoaded(base);
         setSquad(squadNow);
         setInSquad(inNow);
         setLocked(lockedNow);
         setForm(f);
         setReopenedName(reopened?.name ?? null);
-        run(f, lockedNow, { squad: squadNow, inSquad: inNow, club: base?.club ?? null, score: req.score ?? "within" });
+        run(f, lockedNow, { squad: squadNow, inSquad: inNow, club: base?.club ?? null, score: req.score ?? "within",
+                            departed: base?.cs?.left_ids ?? [] });
       } catch (e) { if (live) setFailure(e instanceof ApiError ? e.message : "Could not reopen the saved plan."); }
     })();
     return () => { live = false; };
@@ -149,8 +179,9 @@ export default function Improve() {
 
   // ctx: values just loaded but not yet in state (reopening a saved plan)
   async function run(f: ImproveForm, lockedNow: Set<number> = locked,
-                     ctx?: { squad: SquadPlayer[]; inSquad: Set<number>; club: Club | null; score: "within" | "adjusted" }) {
-    const { req: base, errors } = toImproveRequest(f, ctx?.squad ?? squad, ctx?.inSquad ?? inSquad, lockedNow, [...shortlist.ids]);
+                     ctx?: { squad: SquadPlayer[]; inSquad: Set<number>; club: Club | null; score: "within" | "adjusted"; departed?: number[] }) {
+    const { req: base, errors } = toImproveRequest(f, ctx?.squad ?? squad, ctx?.inSquad ?? inSquad, lockedNow, [...shortlist.ids],
+                                                    ctx?.departed ?? departed);
     setErrors(errors);
     if (!base) { focusFirst(errors); return; }
     const score = ctx?.score ?? (adjustment?.active && f.adjusted ? "adjusted" as const : "within" as const);
@@ -205,12 +236,26 @@ export default function Improve() {
           <section aria-label="Squad" className="rounded-md border border-rule bg-surface-raised">
             <div className="border-b border-rule px-3 py-2">
               <p className="font-semibold">{club.name}</p>
+              {current && (
+                <p className="mt-0.5 text-xs text-ink-soft" aria-live="polite">
+                  Current squad, {new Date(current.fetched).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })} (API-Football).
+                  {current.not_in_data.length > 0 && (
+                    <> Not in the data, so no score: {current.not_in_data.map((x) => x.name).join(", ")}.</>
+                  )}
+                </p>
+              )}
+              {fallback && (
+                <p role="status" className="mt-1 rounded bg-surface-sunk px-2 py-1.5 text-xs text-ink-soft">
+                  Showing the squad from the data (end of 2025/26), because the current squad could not be loaded: {fallback}
+                </p>
+              )}
               <p className="text-xs text-ink-faint">
                 {scoredInSquad} players with a score in the squad
-                {useAdjusted ? " (scores adjusted for league strength, as on the boards)" : ""}. Untick players who have left
-                (they are not suggested as signings); lock players who must start.
+                {useAdjusted ? " (scores adjusted for league strength, as on the boards)" : ""}. Untick players you don't
+                count on (they are not suggested as signings); lock players who must start.
               </p>
             </div>
+            {loadingSquad && <p className="px-3 py-2 text-sm text-ink-soft">Loading the current squad…</p>}
             <ul className="max-h-[22rem] divide-y divide-rule overflow-y-auto">
               {[...squad].sort((a, b) => (shownScore(a) == null ? 1 : 0) - (shownScore(b) == null ? 1 : 0)
                   || (shownScore(b) ?? 0) - (shownScore(a) ?? 0) || a.name.localeCompare(b.name)).map((p) => {
@@ -221,7 +266,10 @@ export default function Improve() {
                     <input type="checkbox" className="h-4 w-4 accent-board" checked={on} aria-label={`${p.name} is in the squad`}
                            onChange={() => { setInSquad((s) => toggle(s, p.player_id)); setLocked((s) => { const n = new Set(s); n.delete(p.player_id); return n; }); }} />
                     <span className={`min-w-0 flex-1 ${on ? "" : "opacity-50"}`}>
-                      <span className="block truncate font-medium">{p.name}</span>
+                      <span className="flex items-center gap-1.5">
+                        <span className="truncate font-medium">{p.name}</span>
+                        {current?.joined_ids.includes(p.player_id) && <span className="rounded bg-marker px-1 text-[10px] font-bold uppercase text-ink" title="Joined since the end of 2025/26">new</span>}
+                      </span>
                       <span className="block text-xs text-ink-faint">
                         {unscored ? "No 2024/25 score, left out" : `${ROLE_NAMES[p.role!]}, age ${p.age ?? "–"}`}
                       </span>

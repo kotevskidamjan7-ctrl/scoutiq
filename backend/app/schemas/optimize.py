@@ -1,5 +1,6 @@
 """Request and response models for POST /api/v1/optimize/squad (Mode A)."""
 
+from datetime import date
 from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
@@ -187,3 +188,20 @@ class SquadPlayerOut(BaseModel):
 class SquadOut(BaseModel):
     club: ClubOut
     players: list[SquadPlayerOut]
+
+
+class UnknownPlayer(BaseModel):
+    name: str
+    age: int | None = None
+    position: str | None = None
+
+
+class CurrentSquadOut(BaseModel):
+    """The squad as API-Football has it now, matched to ScoutIQ players."""
+    club: ClubOut
+    fetched: date
+    players: list[SquadPlayerOut]          # current players found in the data (with 2024/25 scores if any)
+    joined_ids: list[int]                  # in the current squad, not in the data's squad
+    left_ids: list[int]                    # in the data's squad, no longer in the current squad
+    not_in_data: list[UnknownPlayer]       # current players the data does not know (e.g. from other leagues)
+    matched_by_name: int

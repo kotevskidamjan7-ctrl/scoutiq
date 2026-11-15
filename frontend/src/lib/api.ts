@@ -136,6 +136,10 @@ export interface SquadPlayer {
   score: number | null; score_adjusted?: number | null; reliability: string | null; price_eur: number | null; minutes_2025_26: number;
 }
 export interface Squad { club: Club; players: SquadPlayer[]; }
+export interface CurrentSquad {
+  club: Club; fetched: string; players: SquadPlayer[]; joined_ids: number[]; left_ids: number[];
+  not_in_data: { name: string; age: number | null; position: string | null }[]; matched_by_name: number;
+}
 
 export interface ImproveRequest {
   formation: string; budget_eur: number; owned_player_ids: number[]; locked_player_ids?: number[]; left_player_ids?: number[];
@@ -291,6 +295,7 @@ export const api = {
   dashboard: (maxAge?: number | null) => request<Dashboard>(`/stats/dashboard${query({ max_age: maxAge ?? undefined })}`),
   clubs: (q: string) => request<Club[]>(`/clubs${query({ q })}`),
   squad: (clubId: number) => request<Squad>(`/clubs/${clubId}/squad`),
+  currentSquad: (clubId: number) => request<CurrentSquad>(`/clubs/${clubId}/squad/current`, { method: "POST" }),
   squadPlayers: (ids: number[]) => request<SquadPlayer[]>(`/squad/players${query({ ids })}`),
   interpret: (text: string, page: "players" | "builder" | "improve") =>
     request<Interpretation>("/assistant/interpret", { method: "POST", body: JSON.stringify({ text, page }) }),

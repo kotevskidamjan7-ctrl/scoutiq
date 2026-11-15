@@ -83,17 +83,19 @@ def differences(target: dict[str, float], other: dict[str, float], weights: dict
 
 def similar(db: Session, player_id: int, *, limit: int = 10, max_price_eur: int | None = None,
             max_age: int | None = None, league_ids: list[int] | None = None,
-            exclude_ids: list[int] | None = None, score: str = "within", include_low: bool = False) -> dict | None:
+            exclude_ids: list[int] | None = None, score: str = "within", include_low: bool = False,
+            preloaded: tuple[dict[int, Profile], list[Row]] | None = None) -> dict | None:
     """The `limit` most similar players to `player_id` in his role, after the filters.
 
-    Returns None if the player has no scored profile.
+    Returns None if the player has no scored profile. `preloaded` = (profiles(db), all_rows(db)) lets
+    a caller that asks many times (the evaluation) load the data once.
     """
-    profs = profiles(db)
+    profs = preloaded[0] if preloaded else profiles(db)
     target = profs.get(player_id)
     if target is None:
         return None
     weights = M.WEIGHTS.get(target.role, {})
-    rows: dict[int, Row] = {r.player_id: r for r in all_rows(db)}
+    rows: dict[int, Row] = {r.player_id: r for r in (preloaded[1] if preloaded else all_rows(db))}
     me = rows.get(player_id)
     excluded = set(exclude_ids or []) | {player_id}
     leagues = set(league_ids or [])

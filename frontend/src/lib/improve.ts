@@ -35,7 +35,7 @@ export const DEFAULT_IMPROVE: ImproveForm = {
 const int = (s: string) => (s.trim() === "" ? null : Number.parseInt(s, 10));
 
 export function toImproveRequest(f: ImproveForm, squad: SquadPlayer[], inSquad: Set<number>, locked: Set<number>,
-                                 shortlistIds: number[] = []):
+                                 shortlistIds: number[] = [], departed: number[] = []):
   { req: ImproveRequest | null; errors: Record<string, string> } {
   const errors: Record<string, string> = {};
   const budget = f.budget.trim() === "0" ? 0 : parseMoney(f.budget);
@@ -56,7 +56,9 @@ export function toImproveRequest(f: ImproveForm, squad: SquadPlayer[], inSquad: 
     req: {
       formation: f.formation, budget_eur: budget!, owned_player_ids: owned,
       locked_player_ids: owned.filter((id) => locked.has(id)), max_signings: f.maxSignings,
-      left_player_ids: squad.filter((p) => !inSquad.has(p.player_id)).map((p) => p.player_id),
+      // unticked players, plus those who left the club (hidden in the list): never suggested as signings
+      left_player_ids: [...new Set([...squad.filter((p) => !inSquad.has(p.player_id)).map((p) => p.player_id),
+                                    ...departed.filter((id) => !owned.includes(id))])],
       signing_roles: f.signingRoles,
       age_min: ageMin, age_max: ageMax, max_price_eur: maxPrice,
       min_minutes: f.includeLowMinutes ? 450 : 900, min_minutes_next: f.recentForm ? 900 : 0, alternatives: 2,
