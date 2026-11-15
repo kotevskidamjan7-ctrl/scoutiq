@@ -1,8 +1,8 @@
-"""Users and their saved optimization scenarios."""
+"""Users, their saved optimization scenarios and their shortlists."""
 
 from datetime import datetime
 
-from sqlalchemy import JSON, Boolean, CheckConstraint, DateTime, Float, ForeignKey, String, func
+from sqlalchemy import JSON, BigInteger, Boolean, CheckConstraint, DateTime, Float, ForeignKey, String, Text, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -52,3 +52,18 @@ class ScenarioPlayer(Base):
     is_existing: Mapped[bool] = mapped_column(Boolean, default=False)  # True = already in squad (Mode B)
 
     scenario: Mapped[Scenario] = relationship(back_populates="players")
+
+
+class ShortlistEntry(Base):
+    """A player a user is following, with a private note and his market value when he was added."""
+
+    __tablename__ = "shortlist_entry"
+    __table_args__ = (UniqueConstraint("user_id", "player_id", name="uq_shortlist_user_player"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("app_user.id", ondelete="CASCADE"), index=True)
+    player_id: Mapped[int] = mapped_column(ForeignKey("player.id", ondelete="CASCADE"))
+    note: Mapped[str] = mapped_column(Text, default="")
+    value_at_add_eur: Mapped[int | None] = mapped_column(BigInteger)
+    added_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

@@ -10,6 +10,7 @@ import SimilarPlayers from "../components/SimilarPlayers";
 import { valueTrend } from "../lib/valueTrend";
 import PageHeader from "../components/PageHeader";
 import BackButton from "../components/BackButton";
+import StarButton from "../components/StarButton";
 import PositionPitch from "../components/PositionPitch";
 
 function Section({ title, note, children }: { title: string; note?: ReactNode; children: ReactNode }) {
@@ -70,13 +71,18 @@ export default function Profile() {
         title={p.name}
         subtitle={<>{[s ? ROLE_NAMES[s.role] : p.primary_position, p.age != null && `${p.age} years old`, p.nationality].filter(Boolean).join(", ")}
           {stats[0] && <>. {stats[0].club as string} ({stats[0].league as string}), 2024/25</>}</>}
-        actions={s && (
-          <button type="button" className={picked ? "btn-quiet" : "btn-primary"}
-                  disabled={!picked && compare.full}
-                  onClick={() => compare.toggle({ id: p.id, name: p.name, role: s.role })}>
-            {picked ? "Remove from comparison" : compare.full ? "Comparison is full (4)" : "Add to comparison"}
-          </button>
-        )}>
+        actions={
+          <div className="flex flex-wrap gap-2">
+            <StarButton playerId={p.id} name={p.name} variant="full" />
+            {s && (
+              <button type="button" className={picked ? "btn-quiet" : "btn-primary"}
+                      disabled={!picked && compare.full}
+                      onClick={() => compare.toggle({ id: p.id, name: p.name, role: s.role })}>
+                {picked ? "Remove from comparison" : compare.full ? "Comparison is full (4)" : "Add to comparison"}
+              </button>
+            )}
+          </div>
+        }>
         <dl className="mt-7 grid grid-cols-2 gap-y-5 border-t border-chalk/15 pt-5 lg:grid-cols-4">
           {[
             ["Score 2024/25", s ? s.score.toFixed(1) : "–", s ? `within ${s.league}, 0–100` : "not scored"],

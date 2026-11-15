@@ -39,7 +39,7 @@ def optimize_squad(body: OptimizeRequest, db: Session = Depends(get_db),
 def run_optimization(body: OptimizeRequest, db: Session) -> OptimizeResponse:
     """The whole Mode A run; shared by the endpoint and by saved scenarios."""
     candidates = load_candidates(db, 2024, body.score)
-    common = dict(age_min=body.age_min, age_max=body.age_max, league_ids=tuple(body.league_ids),
+    common = dict(age_min=body.age_min, age_max=body.age_max, league_ids=tuple(body.league_ids), only_ids=tuple(body.only_player_ids),
                   nationalities=tuple(body.nationalities), exclude_nationalities=tuple(body.exclude_nationalities),
                   max_price=body.max_price_eur, min_minutes=body.min_minutes,
                   min_minutes_next=body.min_minutes_next or None, max_per_club=body.max_per_club,

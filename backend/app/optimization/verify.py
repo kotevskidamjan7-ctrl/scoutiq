@@ -67,6 +67,8 @@ def verify(team: Team, req: Request, kept: list[Candidate] | None = None,
             problems.append(f"{who}: {p.minutes} minutes < {req.min_minutes}")
         if req.min_minutes_next is not None and p.minutes_next < req.min_minutes_next:
             problems.append(f"{who}: {p.minutes_next} next-season minutes < {req.min_minutes_next}")
+        if req.only_ids and p.player_id not in req.only_ids:
+            problems.append(f"{who}: not in the allowed players (shortlist)")
         if req.league_ids and p.league_id not in req.league_ids:
             problems.append(f"{who}: league {p.league_id} not selected")
         if req.nationalities and p.nationality not in req.nationalities:

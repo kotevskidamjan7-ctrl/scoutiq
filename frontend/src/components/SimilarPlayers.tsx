@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api, ApiError, League, SimilarOut } from "../lib/api";
 import { AcrossLeaguesToggle, useAdjustment } from "../lib/adjustment";
+import StarButton from "./StarButton";
 import { eur, moneyText, parseMoney } from "../lib/format";
 
 interface Props {
@@ -117,6 +118,7 @@ export default function SimilarPlayers({ playerId, maxPriceEur = null, excludeId
                     <span className="font-semibold">{eur(r.price_eur)}</span>
                     <span className="block text-xs text-ink-faint">value</span>
                   </span>
+                  <StarButton playerId={r.player_id} name={r.name} />
                 </li>
               ))}
             </ol>

@@ -5,6 +5,7 @@ import { Link } from "react-router-dom";
 import type { ImproveRequest, ImproveResponse } from "../lib/api";
 import { eur, ROLE_NAMES, signed } from "../lib/format";
 import { replacements } from "../lib/improve";
+import StarButton from "./StarButton";
 import TacticsBoard from "./TacticsBoard";
 
 export default function ImproveResult({ result, request }: { result: ImproveResponse; request: ImproveRequest }) {
@@ -71,6 +72,7 @@ export default function ImproveResult({ result, request }: { result: ImproveResp
                   {r && <span className="text-sm text-ink-soft"> ({signed(p.score - r.score)})</span>}
                   <span className="block text-xs text-ink-faint">{eur(p.price_eur)}</span>
                 </span>
+                <StarButton playerId={p.player_id} name={p.name} />
               </li>
             );
           })}

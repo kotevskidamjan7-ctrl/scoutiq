@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { api, Profile } from "../lib/api";
 import { useCompare } from "../lib/compare";
 import { eur, metricValue, num, ROLE_NAMES, signed } from "../lib/format";
+import StarButton from "./StarButton";
 import PositionPitch from "./PositionPitch";
 
 export default function PlayerCard({ id, shownScore, onClose }: { id: number; shownScore: number | null; onClose: () => void }) {
@@ -72,6 +73,7 @@ export default function PlayerCard({ id, shownScore, onClose }: { id: number; sh
 
       <div className="flex flex-wrap gap-2">
         <Link to={`/players/${p.id}`} className="btn-primary py-1.5">Open full profile</Link>
+        <StarButton playerId={p.id} name={p.name} variant="full" className="py-1.5" />
         {s && (
           <button type="button" className="btn-quiet py-1.5" disabled={!picked && compare.full}
                   onClick={() => compare.toggle({ id: p.id, name: p.name, role: s.role })}>

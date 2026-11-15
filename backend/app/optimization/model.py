@@ -66,6 +66,7 @@ class Request:
     age_min: int | None = None
     age_max: int | None = None
     league_ids: tuple[int, ...] = ()        # empty = all
+    only_ids: tuple[int, ...] = ()          # buy only these players, e.g. a shortlist (empty = anyone)
     nationalities: tuple[str, ...] = ()     # empty = all
     exclude_nationalities: tuple[str, ...] = ()
     max_price: int | None = None
@@ -112,10 +113,13 @@ def age_on(birth: date | None, ref: date) -> int | None:
 def apply_filters(candidates: list[Candidate], req: Request) -> list[Candidate]:
     """Candidates that may be BOUGHT under the request (kept players are handled separately)."""
     leagues, nats, excl = set(req.league_ids), set(req.nationalities), set(req.exclude_nationalities)
+    only = set(req.only_ids)
     skip = set(req.exclude_ids) | set(req.kept_ids) | set(req.owned_ids)
     out = []
     for c in candidates:
         if c.player_id in skip or c.price is None or c.price <= 0:
+            continue
+        if only and c.player_id not in only:
             continue
         if req.signing_roles and c.role not in req.signing_roles:
             continue

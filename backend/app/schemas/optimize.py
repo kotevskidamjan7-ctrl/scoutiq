@@ -20,6 +20,8 @@ class OptimizeRequest(BaseModel):
     age_min: int | None = Field(None, ge=15, le=45)
     age_max: int | None = Field(None, ge=15, le=45)
     league_ids: list[int] = []
+    only_player_ids: list[int] = Field([], max_length=1000,
+                                       description="Buy only these players, e.g. the user's shortlist (empty = anyone)")
     nationalities: list[str] = []
     exclude_nationalities: list[str] = []
     max_price_eur: int | None = Field(None, gt=0)
@@ -110,6 +112,8 @@ class ImproveRequest(BaseModel):
     age_min: int | None = Field(None, ge=15, le=45)
     age_max: int | None = Field(None, ge=15, le=45)
     league_ids: list[int] = []
+    only_player_ids: list[int] = Field([], max_length=1000,
+                                       description="Buy only these players, e.g. the user's shortlist (empty = anyone)")
     nationalities: list[str] = []
     max_price_eur: int | None = Field(None, gt=0)
     min_minutes: int = Field(900, ge=450, le=4000)
@@ -174,6 +178,7 @@ class SquadPlayerOut(BaseModel):
     position: str | None
     role: str | None
     score: float | None
+    score_adjusted: float | None = None   # league-adjusted, as used with "Compare across leagues"
     reliability: str | None
     price_eur: int | None
     minutes_2025_26: int

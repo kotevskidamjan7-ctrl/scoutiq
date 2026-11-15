@@ -102,6 +102,10 @@ def test_club_search_and_squad(seeded):
     assert ids == {p.id for p in squad} | {kid.id}
     kid_row = next(p for p in s["players"] if p["player_id"] == kid.id)
     assert kid_row["score"] is None and kid_row["role"] is None
+    assert kid_row["score_adjusted"] is None
+    # the adjusted score matches what the optimizer uses with score="adjusted"
+    scored = [p for p in s["players"] if p["score"] is not None]
+    assert all("score_adjusted" in p for p in scored)
     assert s["players"][-1]["player_id"] == kid.id  # unscored players listed last
     assert c.get("/api/v1/clubs/99999999/squad").status_code == 404
 

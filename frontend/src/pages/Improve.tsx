@@ -11,6 +11,8 @@ import { AcrossLeaguesToggle, useAdjustment } from "../lib/adjustment";
 import ImproveResult from "../components/ImproveResult";
 import SimilarPlayers from "../components/SimilarPlayers";
 import Toast from "../components/Toast";
+import ShortlistOption from "../components/ShortlistOption";
+import { useShortlist } from "../lib/shortlist";
 import PageHeader from "../components/PageHeader";
 
 function Field({ id, label, error, hint, children }: { id: string; label: string; error?: string; hint?: string; children: ReactNode }) {
@@ -83,7 +85,12 @@ export default function Improve() {
   const [toast, setToast] = useState<string | null>(null);
   const clearToast = useCallback(() => setToast(null), []);
   const location = useLocation();
-  const reopened = (location.state as { improve?: ImproveRequest; clubId?: number | null; name?: string } | null);
+  const reopened = (location.state as { improve?: ImproveRequest; clubId?: number | null; name?: string; fromShortlist?: boolean } | null);
+  const shortlist = useShortlist();
+  // coming from the Shortlist page's "Improve my club with it"
+  useEffect(() => {
+    if (reopened?.fromShortlist) setForm((f) => ({ ...f, fromShortlist: true }));
+  }, [reopened]);
   const [reopenedName, setReopenedName] = useState<string | null>(null);
   const [replacing, setReplacing] = useState<SquadPlayer | null>(null);   // a player who left: show similar players
   const replaceRef = useRef<HTMLElement>(null);
@@ -143,7 +150,7 @@ export default function Improve() {
   // ctx: values just loaded but not yet in state (reopening a saved plan)
   async function run(f: ImproveForm, lockedNow: Set<number> = locked,
                      ctx?: { squad: SquadPlayer[]; inSquad: Set<number>; club: Club | null; score: "within" | "adjusted" }) {
-    const { req: base, errors } = toImproveRequest(f, ctx?.squad ?? squad, ctx?.inSquad ?? inSquad, lockedNow);
+    const { req: base, errors } = toImproveRequest(f, ctx?.squad ?? squad, ctx?.inSquad ?? inSquad, lockedNow, [...shortlist.ids]);
     setErrors(errors);
     if (!base) { focusFirst(errors); return; }
     const score = ctx?.score ?? (adjustment?.active && f.adjusted ? "adjusted" as const : "within" as const);
@@ -173,6 +180,9 @@ export default function Improve() {
     }
   }
 
+  // the squad list shows the same score as the boards: league-adjusted when "Compare across leagues" is on
+  const useAdjusted = !!(adjustment?.active && form.adjusted);
+  const shownScore = (p: SquadPlayer) => (useAdjusted && p.score_adjusted != null ? p.score_adjusted : p.score);
   const scoredInSquad = squad.filter((p) => inSquad.has(p.player_id) && p.score != null).length;
   const lockedPerRole = squad.reduce<Record<string, number>>((acc, p) => {
     if (locked.has(p.player_id) && p.role) acc[p.role] = (acc[p.role] ?? 0) + 1;
@@ -196,12 +206,14 @@ export default function Improve() {
             <div className="border-b border-rule px-3 py-2">
               <p className="font-semibold">{club.name}</p>
               <p className="text-xs text-ink-faint">
-                {scoredInSquad} players with a score in the squad. Untick players who have left (they are not suggested as
-                signings); lock players who must start.
+                {scoredInSquad} players with a score in the squad
+                {useAdjusted ? " (scores adjusted for league strength, as on the boards)" : ""}. Untick players who have left
+                (they are not suggested as signings); lock players who must start.
               </p>
             </div>
             <ul className="max-h-[22rem] divide-y divide-rule overflow-y-auto">
-              {squad.map((p) => {
+              {[...squad].sort((a, b) => (shownScore(a) == null ? 1 : 0) - (shownScore(b) == null ? 1 : 0)
+                  || (shownScore(b) ?? 0) - (shownScore(a) ?? 0) || a.name.localeCompare(b.name)).map((p) => {
                 const on = inSquad.has(p.player_id);
                 const unscored = p.score == null;
                 return (
@@ -214,7 +226,7 @@ export default function Improve() {
                         {unscored ? "No 2024/25 score, left out" : `${ROLE_NAMES[p.role!]}, age ${p.age ?? "–"}`}
                       </span>
                     </span>
-                    <span className={`num w-10 text-right font-semibold ${on ? "" : "opacity-50"}`}>{unscored ? "–" : p.score!.toFixed(0)}</span>
+                    <span className={`num w-10 text-right font-semibold ${on ? "" : "opacity-50"}`}>{unscored ? "–" : shownScore(p)!.toFixed(0)}</span>
                     {!on && !unscored ? (
                       <button type="button" onClick={() => { setReplacing(p); setTimeout(() => replaceRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50); }}
                               aria-pressed={replacing?.player_id === p.player_id}
@@ -307,6 +319,8 @@ export default function Improve() {
         </div>
 
         <AcrossLeaguesToggle checked={form.adjusted} onChange={(v) => set("adjusted", v)} status={adjustment} />
+
+        <ShortlistOption checked={form.fromShortlist} onChange={(v) => set("fromShortlist", v)} error={errors.fromShortlist} />
 
         <details className="rounded-md border border-rule bg-surface-raised" open={!!(form.ageMin || form.ageMax || form.maxPrice || form.includeLowMinutes || !form.recentForm || form.leagueIds.length || form.nationalities.length)}>
           <summary className="cursor-pointer px-3 py-2 font-semibold">Filters for signings</summary>

@@ -74,3 +74,21 @@ suite("formFromInterpretation", () => {
     expect(req).toMatchObject({ league_ids: [1, 2], nationalities: ["Spain"] });
   });
 });
+
+suite("only players on the shortlist", () => {
+  it("sends the shortlist ids when the option is on", () => {
+    const { req } = toRequest({ ...DEFAULT_FORM, fromShortlist: true }, [7, 9]);
+    expect(req?.only_player_ids).toEqual([7, 9]);
+    expect(toRequest(DEFAULT_FORM, [7, 9]).req?.only_player_ids).toEqual([]);
+  });
+  it("explains an empty shortlist instead of searching nobody", () => {
+    const { req, errors } = toRequest({ ...DEFAULT_FORM, fromShortlist: true }, []);
+    expect(req).toBeNull();
+    expect(errors.fromShortlist).toMatch(/shortlist is empty/);
+  });
+  it("reopens a saved shortlist request with the option on, and the suggestion turns it off", () => {
+    const f = fromRequest({ formation: "4-3-3", budget_eur: 5_000_000, only_player_ids: [1] });
+    expect(f.fromShortlist).toBe(true);
+    expect(applySuggestion(f, "search beyond your shortlist", null)?.fromShortlist).toBe(false);
+  });
+});

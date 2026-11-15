@@ -10,6 +10,8 @@ import { eur, ROLE_NAMES } from "../lib/format";
 import { FORMATIONS } from "../lib/formations";
 import ResultView from "../components/ResultView";
 import Toast from "../components/Toast";
+import ShortlistOption from "../components/ShortlistOption";
+import { useShortlist } from "../lib/shortlist";
 import PageHeader from "../components/PageHeader";
 
 const ROLES: Role[] = ["GK", "CB", "FB", "CM", "AW", "ST"];
@@ -34,8 +36,11 @@ function focusFirst(errors: Record<string, string>) {
 
 export default function Builder() {
   const location = useLocation();
-  const reopened = (location.state as { request?: OptimizeRequest } | null)?.request;
-  const [form, setForm] = useState<Form>(() => (reopened ? fromRequest(reopened) : DEFAULT_FORM));
+  const state = location.state as { request?: OptimizeRequest; fromShortlist?: boolean } | null;
+  const reopened = state?.request;
+  const [form, setForm] = useState<Form>(() =>
+    reopened ? fromRequest(reopened) : { ...DEFAULT_FORM, fromShortlist: !!state?.fromShortlist });
+  const shortlist = useShortlist();
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [result, setResult] = useState<OptimizeResponse | null>(null);
   const [lastReq, setLastReq] = useState<OptimizeRequest | null>(null);
@@ -51,7 +56,7 @@ export default function Builder() {
   const setNeed = (r: Role, n: number) => setForm((f) => ({ ...f, needs: { ...f.needs, [r]: Math.max(0, Math.min(11, n)) } }));
 
   async function run(f: Form) {
-    const { req: base, errors } = toRequest(f);
+    const { req: base, errors } = toRequest(f, [...shortlist.ids]);
     setErrors(errors);
     if (!base) { focusFirst(errors); return; }
     const req = { ...base, score: adjustment?.active && f.adjusted ? "adjusted" as const : "within" as const };
@@ -156,6 +161,8 @@ export default function Builder() {
         )}
 
         <AcrossLeaguesToggle checked={form.adjusted} onChange={(v) => set("adjusted", v)} status={adjustment} />
+
+        <ShortlistOption checked={form.fromShortlist} onChange={(v) => set("fromShortlist", v)} error={errors.fromShortlist} />
 
         <details className="group rounded-md border border-rule bg-surface-raised" open={!!(form.ageMin || form.ageMax || form.maxPrice || form.maxPerClub || form.includeLowMinutes || !form.recentForm || form.leagueIds.length || form.nationalities.length)}>
           <summary className="cursor-pointer px-3 py-2 font-semibold">Filters</summary>

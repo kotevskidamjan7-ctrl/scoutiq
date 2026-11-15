@@ -10,6 +10,7 @@ export interface OptimizeRequest {
   age_min?: number | null;
   age_max?: number | null;
   league_ids?: number[];
+  only_player_ids?: number[];   // buy only these players (the shortlist)
   nationalities?: string[];
   max_price_eur?: number | null;
   min_minutes?: number;
@@ -132,13 +133,13 @@ export interface Dashboard {
 export interface Club { id: number; name: string; league: string; }
 export interface SquadPlayer {
   player_id: number; name: string; age: number | null; position: string | null; role: Role | null;
-  score: number | null; reliability: string | null; price_eur: number | null; minutes_2025_26: number;
+  score: number | null; score_adjusted?: number | null; reliability: string | null; price_eur: number | null; minutes_2025_26: number;
 }
 export interface Squad { club: Club; players: SquadPlayer[]; }
 
 export interface ImproveRequest {
   formation: string; budget_eur: number; owned_player_ids: number[]; locked_player_ids?: number[]; left_player_ids?: number[];
-  max_signings?: number; signing_roles?: Role[]; nationalities?: string[]; league_ids?: number[]; age_min?: number | null; age_max?: number | null; max_price_eur?: number | null;
+  max_signings?: number; signing_roles?: Role[]; nationalities?: string[]; league_ids?: number[]; only_player_ids?: number[]; age_min?: number | null; age_max?: number | null; max_price_eur?: number | null;
   min_minutes?: number; min_minutes_next?: number; alternatives?: number; score?: "within" | "adjusted";
 }
 export interface ImprovePlayer extends PlayerOut { signing: boolean; }
@@ -162,6 +163,13 @@ export interface Interpretation {
 }
 
 export interface Comparison { players: Profile[]; same_role: boolean; }
+
+export interface ShortlistItem {
+  player_id: number; name: string; age: number | null; nationality: string | null; role: Role | null;
+  league_id: number | null; league: string | null; club: string | null; score: number | null; score_adjusted: number | null;
+  value_for_money: number | null; reliability: string | null; minutes: number | null; minutes_next: number | null;
+  price_eur: number | null; note: string; added_at: string; value_at_add_eur: number | null; value_change_pct: number | null;
+}
 
 export interface Difference { metric: string; diff: number; }
 export interface SimilarPlayer {
@@ -270,6 +278,11 @@ export const api = {
   scenario: (id: number) => request<Scenario>(`/scenarios/${id}`),
   deleteScenario: (id: number) => request<void>(`/scenarios/${id}`, { method: "DELETE" }),
   similar: (id: number, q: SimilarQuery = {}) => request<SimilarOut>(`/players/${id}/similar${query({ ...q })}`),
+  shortlist: () => request<ShortlistItem[]>("/shortlist"),
+  shortlistAdd: (id: number) => request<ShortlistItem>(`/shortlist/${id}`, { method: "PUT", body: JSON.stringify({}) }),
+  shortlistNote: (id: number, note: string) =>
+    request<ShortlistItem>(`/shortlist/${id}`, { method: "PUT", body: JSON.stringify({ note }) }),
+  shortlistRemove: (id: number) => request<void>(`/shortlist/${id}`, { method: "DELETE" }),
   downloadScenarioPdf: (id: number) => download(`/scenarios/${id}/report.pdf`, `scoutiq-scenario-${id}.pdf`),
   leagues: () => request<League[]>("/leagues"),
   players: (q: PlayerQuery) => request<PlayerPage>(`/players${query({ ...q })}`),

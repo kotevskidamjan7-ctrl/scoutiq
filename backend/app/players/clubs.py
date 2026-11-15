@@ -65,6 +65,7 @@ def players_out(db: Session, ids: set[int], today: date | None = None) -> list[d
     if not ids:
         return []
     scored = {c.player_id: c for c in load_candidates(db, SCORED_SEASON, "within", player_ids=ids, require_value=False)}
+    adjusted = {c.player_id: c.score for c in load_candidates(db, SCORED_SEASON, "adjusted", player_ids=ids, require_value=False)}
     tm = db.scalar(select(DataSource).where(DataSource.code == "transfermarkt"))
     recent = dict(db.execute(
         select(PlayerSeasonStats.player_id, func.sum(PlayerSeasonStats.minutes))
@@ -78,7 +79,9 @@ def players_out(db: Session, ids: set[int], today: date | None = None) -> list[d
         out.append({
             "player_id": p.id, "name": p.full_name, "age": age_on(p.birth_date, today),
             "position": p.primary_position, "role": c.role if c else None,
-            "score": round(c.score, 1) if c else None, "reliability": c.reliability if c else None,
+            "score": round(c.score, 1) if c else None,
+            "score_adjusted": round(adjusted[p.id], 1) if p.id in adjusted else None,
+            "reliability": c.reliability if c else None,
             "price_eur": (c.price or None) if c else None, "minutes_2025_26": int(recent.get(p.id) or 0),
         })
     # scored players first (best first), then the unscored ones by name

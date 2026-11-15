@@ -66,7 +66,7 @@ def improve(body: ImproveRequest, db: Session = Depends(get_db)) -> ImproveRespo
                 for r in clubs.players_out(db, owned_ids - scored_ids)]
     locked = [o for o in owned if o.player_id in set(body.locked_player_ids)]
 
-    common = dict(age_min=body.age_min, age_max=body.age_max, league_ids=tuple(body.league_ids),
+    common = dict(age_min=body.age_min, age_max=body.age_max, league_ids=tuple(body.league_ids), only_ids=tuple(body.only_player_ids),
                   nationalities=tuple(body.nationalities),
                   max_price=body.max_price_eur, min_minutes=body.min_minutes,
                   min_minutes_next=body.min_minutes_next or None, alternatives=body.alternatives,

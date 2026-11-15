@@ -18,6 +18,7 @@ export interface Form {
   leagueIds: number[];          // empty = all leagues
   nationalities: string[];      // empty = any nationality
   adjusted: boolean;            // compare across leagues with league-adjusted scores
+  fromShortlist: boolean;       // buy only players on the user's shortlist
 }
 
 export const EMPTY_NEEDS: Record<Role, number> = { GK: 0, CB: 0, FB: 0, CM: 0, AW: 0, ST: 0 };
@@ -25,13 +26,13 @@ export const EMPTY_NEEDS: Record<Role, number> = { GK: 0, CB: 0, FB: 0, CM: 0, A
 export const DEFAULT_FORM: Form = {
   mode: "xi", budget: "15m", formation: "4-3-3", needs: { ...EMPTY_NEEDS, ST: 1, CM: 1, CB: 1 },
   ageMin: "", ageMax: "", maxPrice: "", maxPerClub: "", includeLowMinutes: false, recentForm: true,
-  leagueIds: [], nationalities: [], adjusted: true,
+  leagueIds: [], nationalities: [], adjusted: true, fromShortlist: false,
 };
 
 const int = (s: string) => (s.trim() === "" ? null : Number.parseInt(s, 10));
 
 /** Returns the request, or a list of problems to show beside the fields. */
-export function toRequest(f: Form): { req: OptimizeRequest | null; errors: Record<string, string> } {
+export function toRequest(f: Form, shortlistIds: number[] = []): { req: OptimizeRequest | null; errors: Record<string, string> } {
   const errors: Record<string, string> = {};
   const budget = parseMoney(f.budget);
   if (budget == null) errors.budget = "Write the budget like 15m, 500k or 2,500,000.";
@@ -46,6 +47,7 @@ export function toRequest(f: Form): { req: OptimizeRequest | null; errors: Recor
   if (perClub != null && (Number.isNaN(perClub) || perClub < 1 || perClub > 11)) errors.maxPerClub = "From 1 to 11.";
   const totalNeeds = Object.values(f.needs).reduce((a, b) => a + b, 0);
   if (f.mode === "signings" && totalNeeds === 0) errors.needs = "Add at least one position to sign.";
+  if (f.fromShortlist && shortlistIds.length === 0) errors.fromShortlist = "Your shortlist is empty. Star some players first, or untick “Only players on my shortlist”.";
   if (Object.keys(errors).length) return { req: null, errors };
 
   const req: OptimizeRequest = {
@@ -54,6 +56,7 @@ export function toRequest(f: Form): { req: OptimizeRequest | null; errors: Recor
     min_minutes: f.includeLowMinutes ? 450 : 900,
     min_minutes_next: f.recentForm ? 900 : 0,
     league_ids: f.leagueIds, nationalities: f.nationalities,
+    only_player_ids: f.fromShortlist ? shortlistIds : [],
     score: f.adjusted ? "adjusted" : "within",
     alternatives: 2,
   };
@@ -76,6 +79,7 @@ export function fromRequest(r: OptimizeRequest): Form {
     includeLowMinutes: (r.min_minutes ?? 900) < 900,
     recentForm: (r.min_minutes_next ?? 900) > 0,
     leagueIds: r.league_ids ?? [], nationalities: r.nationalities ?? [],
+    fromShortlist: (r.only_player_ids?.length ?? 0) > 0,
     adjusted: r.score === "adjusted",
   };
 }
@@ -86,6 +90,7 @@ export function applySuggestion(f: Form, change: string, d: OptimizeResponse["di
   const age = change.match(/^widen the age range to (\w+)-(\w+)/);
   if (age) return { ...f, ageMin: age[1] === "any" ? "" : age[1], ageMax: age[2] === "any" ? "" : age[2] };
   if (change.startsWith("remove the maximum price")) return { ...f, maxPrice: "" };
+  if (change === "search beyond your shortlist") return { ...f, fromShortlist: false };
   if (change === "search all supported leagues") return { ...f, leagueIds: [] };
   if (change === "remove the nationality filter") return { ...f, nationalities: [] };
   if (change.startsWith("include low-reliability")) return { ...f, includeLowMinutes: true };

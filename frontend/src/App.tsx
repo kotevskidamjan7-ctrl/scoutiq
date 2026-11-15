@@ -10,6 +10,7 @@ import Explorer from "./pages/Explorer";
 import Profile from "./pages/Profile";
 import Compare from "./pages/Compare";
 import Dashboard from "./pages/Dashboard";
+import Shortlist from "./pages/Shortlist";
 import Improve from "./pages/Improve";
 
 function RequireAuth({ children }: { children: ReactNode }) {
@@ -31,6 +32,7 @@ export default function App() {
         <Route path="improve" element={<Improve />} />
         <Route path="players" element={<Explorer />} />
         <Route path="players/:id" element={<Profile />} />
+        <Route path="shortlist" element={<Shortlist />} />
         <Route path="compare" element={<Compare />} />
         <Route path="scenarios" element={<Scenarios />} />
         <Route path="scenarios/:id" element={<ScenarioView />} />

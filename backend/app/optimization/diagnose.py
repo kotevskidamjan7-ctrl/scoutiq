@@ -30,6 +30,8 @@ def _relaxations(req: Request, cheapest: int | None) -> list[tuple[str, Request]
         lo = None if req.age_min is None else req.age_min - 2
         hi = None if req.age_max is None else req.age_max + 2
         out.append((f"widen the age range to {lo or 'any'}-{hi or 'any'}", req.relaxed(age_min=lo, age_max=hi)))
+    if req.only_ids:
+        out.append(("search beyond your shortlist", req.relaxed(only_ids=())))
     if req.league_ids:
         out.append(("search all supported leagues", req.relaxed(league_ids=())))
     if req.nationalities or req.exclude_nationalities:
@@ -75,10 +77,14 @@ def diagnose(candidates: list[Candidate], req: Request, kept: list[Candidate] | 
     blocked = [r for r in ROLES if req.signing_roles and r not in req.signing_roles
                and available.get(r, 0) < req.role_min.get(r, 0)]
 
+    where = "on your shortlist" if req.only_ids else "under your filters"
+
+    def shortage_text(r: str) -> str:
+        have, need = available.get(r, 0), req.role_min.get(r, 0)
+        return f"only {have} eligible {ROLE_NAMES[r]} {where}; {need} {'is' if need == 1 else 'are'} needed"
+
     shortages = [
-        {"role": r, "available": available.get(r, 0), "needed": req.role_min.get(r, 0),
-         "text": f"only {available.get(r, 0)} eligible {ROLE_NAMES[r]} under your filters; "
-                 f"{req.role_min.get(r, 0)} are needed"}
+        {"role": r, "available": available.get(r, 0), "needed": req.role_min.get(r, 0), "text": shortage_text(r)}
         for r in ROLES if available.get(r, 0) < req.role_min.get(r, 0)
     ]
 

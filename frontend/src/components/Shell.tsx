@@ -3,6 +3,8 @@ import { NavLink, Outlet } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 import { useTrackPrevious } from "../lib/backTo";
 import { useCompare } from "../lib/compare";
+import { useShortlist } from "../lib/shortlist";
+import Toast from "./Toast";
 
 const link = ({ isActive }: { isActive: boolean }) =>
   [
@@ -14,6 +16,7 @@ export default function Shell() {
   useTrackPrevious();
   const { user, logout } = useAuth();
   const { picks } = useCompare();
+  const shortlist = useShortlist();
   return (
     <div className="min-h-screen lg:grid lg:grid-cols-[13rem_1fr]">
       <header className="flex flex-wrap items-center gap-x-4 gap-y-2 bg-board px-4 py-3 lg:sticky lg:top-0 lg:h-screen lg:flex-col lg:flex-nowrap lg:items-stretch lg:gap-6 lg:px-3 lg:py-6">
@@ -23,6 +26,9 @@ export default function Shell() {
           <NavLink to="/builder" className={link}>Squad builder</NavLink>
           <NavLink to="/improve" className={link}>Improve my club</NavLink>
           <NavLink to="/players" className={link}>Players</NavLink>
+          <NavLink to="/shortlist" className={link}>
+            Shortlist{shortlist.ids.size > 0 && <span className="num ml-2 font-normal">({shortlist.ids.size})</span>}
+          </NavLink>
           <NavLink to="/compare" className={link}>
             Compare{picks.length > 0 && <span className="num ml-2 font-normal">({picks.length})</span>}
           </NavLink>
@@ -40,6 +46,7 @@ export default function Shell() {
           <Outlet />
         </div>
       </main>
+      <Toast text={shortlist.error} onDone={shortlist.clearError} />
     </div>
   );
 }

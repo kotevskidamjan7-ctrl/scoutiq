@@ -24,16 +24,18 @@ export interface ImproveForm {
   leagueIds: number[];
   nationalities: string[];
   adjusted: boolean;
+  fromShortlist: boolean;   // buy only players on the user's shortlist
 }
 
 export const DEFAULT_IMPROVE: ImproveForm = {
   formation: "4-3-3", budget: "5m", maxSignings: 2, signingRoles: [], ageMin: "", ageMax: "", maxPrice: "",
-  recentForm: true, includeLowMinutes: false, leagueIds: [], nationalities: [], adjusted: true,
+  recentForm: true, includeLowMinutes: false, leagueIds: [], nationalities: [], adjusted: true, fromShortlist: false,
 };
 
 const int = (s: string) => (s.trim() === "" ? null : Number.parseInt(s, 10));
 
-export function toImproveRequest(f: ImproveForm, squad: SquadPlayer[], inSquad: Set<number>, locked: Set<number>):
+export function toImproveRequest(f: ImproveForm, squad: SquadPlayer[], inSquad: Set<number>, locked: Set<number>,
+                                 shortlistIds: number[] = []):
   { req: ImproveRequest | null; errors: Record<string, string> } {
   const errors: Record<string, string> = {};
   const budget = f.budget.trim() === "0" ? 0 : parseMoney(f.budget);
@@ -47,6 +49,7 @@ export function toImproveRequest(f: ImproveForm, squad: SquadPlayer[], inSquad: 
   if (ageMin != null && ageMax != null && ageMin > ageMax) errors.ageMax = "The oldest age is below the youngest.";
   const owned = squad.filter((p) => inSquad.has(p.player_id)).map((p) => p.player_id);
   if (owned.length === 0) errors.squad = "Pick your club or add at least one player to the squad.";
+  if (f.fromShortlist && shortlistIds.length === 0) errors.fromShortlist = "Your shortlist is empty. Star some players first, or untick “Only players on my shortlist”.";
   if (Object.keys(errors).length) return { req: null, errors };
   return {
     errors,
@@ -58,6 +61,7 @@ export function toImproveRequest(f: ImproveForm, squad: SquadPlayer[], inSquad: 
       age_min: ageMin, age_max: ageMax, max_price_eur: maxPrice,
       min_minutes: f.includeLowMinutes ? 450 : 900, min_minutes_next: f.recentForm ? 900 : 0, alternatives: 2,
       league_ids: f.leagueIds, nationalities: f.nationalities, score: f.adjusted ? "adjusted" : "within",
+      only_player_ids: f.fromShortlist ? shortlistIds : [],
     },
   };
 }
@@ -66,6 +70,7 @@ const money = moneyText;
 
 /** Turn a server suggestion (each one checked by re-solving) into a form change; null if the form cannot make it. */
 export function applyImproveSuggestion(f: ImproveForm, change: string, d: ImproveResponse["diagnosis"]): ImproveForm | null {
+  if (change === "search beyond your shortlist") return { ...f, fromShortlist: false };
   const more = change.match(/^allow (\d+) signings?(?: and raise the budget to (.+))?$/);
   if (more) {
     const budget = more[2] ? parseMoney(more[2]) : null;
@@ -123,7 +128,7 @@ export function fromImproveRequest(r: ImproveRequest): ImproveForm {
     signingRoles: r.signing_roles ?? [], ageMin: r.age_min?.toString() ?? "", ageMax: r.age_max?.toString() ?? "",
     maxPrice: r.max_price_eur ? money(r.max_price_eur) : "", recentForm: (r.min_minutes_next ?? 900) > 0,
     includeLowMinutes: (r.min_minutes ?? 900) < 900, leagueIds: r.league_ids ?? [], nationalities: r.nationalities ?? [],
-    adjusted: r.score === "adjusted",
+    adjusted: r.score === "adjusted", fromShortlist: (r.only_player_ids?.length ?? 0) > 0,
   };
 }
 
